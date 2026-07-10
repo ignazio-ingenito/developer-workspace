@@ -1,0 +1,15 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "dependencyDashboard": true,
+  "automerge": false,
+  "docker": { "enabled": true },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^Dockerfile$/"],
+      "matchStrings": ["ARG (?<depName>[A-Z0-9_]+)_VERSION=(?<currentValue>[^\\s]+)"],
+      "datasourceTemplate": "github-releases"
+    }
+  ]
+}
