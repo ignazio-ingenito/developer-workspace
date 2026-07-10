@@ -1,11 +1,8 @@
 # Repository bootstrap
 
-1. Create the private repository `ignazio-ingenito/developer-workspace` with `main` as the default branch.
-2. Enable GitHub Actions package write permission.
-3. Protect `main` and require the `build` job.
-4. Open the first implementation PR referencing `ignazio-ingenito/homelab#297`.
-5. Review and validate every pinned tool version before release.
-6. Add SHA-256 verification for all downloaded standalone binaries before the first production tag.
-7. Tag releases as `vMAJOR.MINOR.PATCH`; the workflow publishes only immutable version tags.
-
-The initial scaffold is intentionally a bootstrap release candidate, not a production image, until checksum verification and a successful CI build are complete.
+1. Keep `main` protected and require the `build` job before merge.
+2. Allow GitHub Actions to publish packages for tagged releases.
+3. Open implementation pull requests referencing `ignazio-ingenito/homelab#297`.
+4. Change pinned tool versions only through reviewed pull requests.
+5. Add SHA-256 verification for every downloaded standalone binary before the first production release.
+6. Do not tag a production release until CI, checksum verification, GHCR publication, and Harbor promotion have been validated.
