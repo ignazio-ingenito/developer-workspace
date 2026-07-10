@@ -2,8 +2,6 @@
 
 The release workflow publishes immutable tags to GHCR. Promote the accepted tag to Harbor and verify that the digest is unchanged before updating `homelab`.
 
-Example shape:
-
 ```bash
 skopeo copy \
   docker://ghcr.io/ignazio-ingenito/developer-workspace:v0.1.0 \
