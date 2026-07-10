@@ -24,7 +24,18 @@ if grep -Eq '^[[:xdigit:]]{64}([[:space:]]+|$)' "$checksum_path"; then
   if [[ $(wc -w < "$checksum_path") -eq 1 ]]; then
     expected=$(tr -d '[:space:]' < "$checksum_path")
   else
-    expected=$(awk -v name="$asset_name" '$NF == name || $NF == "*" name {print $1; exit}' "$checksum_path")
+    expected=$(awk -v name="$asset_name" '
+      {
+        candidate=$NF
+        sub(/^\*/, "", candidate)
+        sub(/^\.\//, "", candidate)
+        sub(/^.*\//, "", candidate)
+        if (candidate == name) {
+          print $1
+          exit
+        }
+      }
+    ' "$checksum_path")
   fi
 else
   echo "checksum file has an unsupported format: $checksum_url" >&2
