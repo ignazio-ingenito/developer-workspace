@@ -43,34 +43,65 @@ RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
       "@bitwarden/cli@${BITWARDEN_CLI_VERSION}" \
  && npm cache clean --force
 
-RUN curl -fsSL "https://github.com/jdx/mise/releases/download/v${MISE_VERSION}/mise-v${MISE_VERSION}-linux-x64" \
-      -o /usr/local/bin/mise \
- && chmod 0755 /usr/local/bin/mise
+COPY scripts/download-verified.sh /usr/local/bin/download-verified
+RUN chmod 0755 /usr/local/bin/download-verified
 
-RUN curl -fsSL "https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.amd64" \
-      -o /usr/local/bin/sops \
- && chmod 0755 /usr/local/bin/sops
+RUN download-verified \
+      "https://github.com/jdx/mise/releases/download/v${MISE_VERSION}/mise-v${MISE_VERSION}-linux-x64" \
+      "https://github.com/jdx/mise/releases/download/v${MISE_VERSION}/SHASUMS256.txt" \
+      "mise-v${MISE_VERSION}-linux-x64" \
+      /tmp/mise \
+ && install -m 0755 /tmp/mise /usr/local/bin/mise \
+ && rm /tmp/mise
 
-RUN curl -fsSL "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
-      -o /usr/local/bin/kubectl \
- && chmod 0755 /usr/local/bin/kubectl
+RUN download-verified \
+      "https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.amd64" \
+      "https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.checksums.txt" \
+      "sops-v${SOPS_VERSION}.linux.amd64" \
+      /tmp/sops \
+ && install -m 0755 /tmp/sops /usr/local/bin/sops \
+ && rm /tmp/sops
 
-RUN curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" -o /tmp/helm.tgz \
+RUN download-verified \
+      "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
+      "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl.sha256" \
+      kubectl \
+      /tmp/kubectl \
+ && install -m 0755 /tmp/kubectl /usr/local/bin/kubectl \
+ && rm /tmp/kubectl
+
+RUN download-verified \
+      "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
+      "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz.sha256sum" \
+      "helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
+      /tmp/helm.tgz \
  && tar -xzf /tmp/helm.tgz -C /tmp \
  && install -m 0755 /tmp/linux-amd64/helm /usr/local/bin/helm \
  && rm -rf /tmp/helm.tgz /tmp/linux-amd64
 
-RUN curl -fsSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" -o /tmp/kustomize.tgz \
+RUN download-verified \
+      "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" \
+      "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/checksums.txt" \
+      "kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" \
+      /tmp/kustomize.tgz \
  && tar -xzf /tmp/kustomize.tgz -C /usr/local/bin \
  && chmod 0755 /usr/local/bin/kustomize \
  && rm /tmp/kustomize.tgz
 
-RUN curl -fsSL "https://github.com/opentofu/opentofu/releases/download/v${TOFU_VERSION}/tofu_${TOFU_VERSION}_linux_amd64.zip" -o /tmp/tofu.zip \
+RUN download-verified \
+      "https://github.com/opentofu/opentofu/releases/download/v${TOFU_VERSION}/tofu_${TOFU_VERSION}_linux_amd64.zip" \
+      "https://github.com/opentofu/opentofu/releases/download/v${TOFU_VERSION}/tofu_${TOFU_VERSION}_SHA256SUMS" \
+      "tofu_${TOFU_VERSION}_linux_amd64.zip" \
+      /tmp/tofu.zip \
  && unzip /tmp/tofu.zip -d /tmp/tofu \
  && install -m 0755 /tmp/tofu/tofu /usr/local/bin/tofu \
  && rm -rf /tmp/tofu.zip /tmp/tofu
 
-RUN curl -fsSL "https://github.com/twpayne/chezmoi/releases/download/v${CHEZMOI_VERSION}/chezmoi_${CHEZMOI_VERSION}_linux_amd64.tar.gz" -o /tmp/chezmoi.tgz \
+RUN download-verified \
+      "https://github.com/twpayne/chezmoi/releases/download/v${CHEZMOI_VERSION}/chezmoi_${CHEZMOI_VERSION}_linux_amd64.tar.gz" \
+      "https://github.com/twpayne/chezmoi/releases/download/v${CHEZMOI_VERSION}/chezmoi_${CHEZMOI_VERSION}_checksums.txt" \
+      "chezmoi_${CHEZMOI_VERSION}_linux_amd64.tar.gz" \
+      /tmp/chezmoi.tgz \
  && tar -xzf /tmp/chezmoi.tgz -C /tmp \
  && install -m 0755 /tmp/chezmoi /usr/local/bin/chezmoi \
  && rm /tmp/chezmoi.tgz
