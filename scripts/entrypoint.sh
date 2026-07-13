@@ -1,30 +1,38 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+home=${HOME:-/home/coder}
+workspaces_root=${WORKSPACES_ROOT:-/workspaces}
+baseline_bashrc=${DEVELOPER_WORKSPACE_BASHRC:-/opt/developer-workspace/bashrc}
+baseline_tmux=${DEVELOPER_WORKSPACE_TMUX_CONF:-/opt/developer-workspace/tmux.conf}
+baseline_extensions=${DEVELOPER_WORKSPACE_BASELINE_EXTENSIONS:-/opt/developer-workspace/code-server-extensions}
+extensions_dir="$home/.local/share/code-server/extensions"
+
 mkdir -p \
-  /home/coder/.config/code-server \
-  /home/coder/.local/share/code-server/extensions \
-  /home/coder/.cache \
-  /home/coder/.ssh \
-  "/home/coder/.config/Bitwarden CLI" \
-  /workspaces
+  "$home/.config/code-server" \
+  "$extensions_dir" \
+  "$home/.cache" \
+  "$home/.ssh" \
+  "$home/.config/Bitwarden CLI" \
+  "$home/.config/sops/age" \
+  "$workspaces_root"
 
-chmod 700 /home/coder/.ssh
+chmod 700 "$home/.ssh" "$home/.config/sops/age"
 
-if [[ ! -d /home/coder/.oh-my-bash ]]; then
-  cp -a /opt/oh-my-bash /home/coder/.oh-my-bash
+# A PVC mounted on /home/coder hides image-layer files. Seed the immutable
+# baseline without replacing user-installed or user-updated extensions.
+if [[ -d "$baseline_extensions" ]]; then
+  cp -a --no-clobber "$baseline_extensions/." "$extensions_dir/"
 fi
 
-if [[ ! -f /home/coder/.bashrc ]]; then
-  cat > /home/coder/.bashrc <<'BASHRC'
-export OSH="$HOME/.oh-my-bash"
-OSH_THEME="font"
-completions=(git)
-aliases=(general git)
-plugins=(git mise)
-source "$OSH/oh-my-bash.sh"
-eval "$(mise activate bash)"
-BASHRC
+# Seed only a brand-new home. Existing and chezmoi-managed files are never
+# rewritten at container startup.
+if [[ ! -e "$home/.bashrc" ]]; then
+  install -m 0644 "$baseline_bashrc" "$home/.bashrc"
+fi
+
+if [[ ! -e "$home/.tmux.conf" ]]; then
+  install -m 0644 "$baseline_tmux" "$home/.tmux.conf"
 fi
 
 exec "$@"

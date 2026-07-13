@@ -1,0 +1,12 @@
+# Developer Workspace baseline. Personal changes belong in chezmoi-managed dotfiles.
+export OSH="/opt/oh-my-bash"
+OSH_THEME="font"
+completions=(git)
+aliases=(general)
+plugins=(git)
+
+source "$OSH/oh-my-bash.sh"
+eval "$(mise activate bash)"
+
+# Keep long-running work independent from Safari and network sessions.
+alias work='workspace-tmux'
