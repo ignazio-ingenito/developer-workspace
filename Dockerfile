@@ -116,19 +116,20 @@ COPY config/shell/bashrc /opt/developer-workspace/bashrc
 COPY config/tmux/tmux.conf /opt/developer-workspace/tmux.conf
 COPY extensions/baseline.txt /opt/developer-workspace/extensions.txt
 
-RUN chmod -R a+rX /usr/local/lib/developer-workspace /opt/developer-workspace /opt/oh-my-bash \
+RUN CODE_SERVER_EXTENSIONS_DIR=/opt/developer-workspace/code-server-extensions \
+      /usr/local/lib/developer-workspace/install-extensions.sh \
+ && chmod -R a+rX /usr/local/lib/developer-workspace /opt/developer-workspace /opt/oh-my-bash \
  && chmod 0755 /usr/local/lib/developer-workspace/*.sh \
  && ln -s /usr/local/lib/developer-workspace/workspace-doctor.sh /usr/local/bin/workspace-doctor \
  && ln -s /usr/local/lib/developer-workspace/workspace-tmux.sh /usr/local/bin/workspace-tmux
 
-USER 1000
 ENV HOME=/home/coder \
     SHELL=/bin/bash \
     MISE_DATA_DIR=/home/coder/.local/share/mise \
     MISE_CACHE_DIR=/home/coder/.cache/mise \
     BW_SERVER=https://vault.skunklabs.uk
 
-RUN /usr/local/lib/developer-workspace/install-extensions.sh
+USER 1000
 
 WORKDIR /workspaces
 ENTRYPOINT ["/usr/local/lib/developer-workspace/entrypoint.sh"]

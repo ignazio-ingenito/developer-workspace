@@ -23,7 +23,7 @@ chezmoi --version
 
 /usr/local/lib/developer-workspace/test-shell-bootstrap.sh
 
-code-server --extensions-dir "$HOME/.local/share/code-server/extensions" --list-extensions \
+code-server --extensions-dir /opt/developer-workspace/code-server-extensions --list-extensions \
   | grep -Fx redhat.vscode-yaml
 
 echo "smoke test passed"

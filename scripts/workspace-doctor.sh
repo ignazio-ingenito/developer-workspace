@@ -35,6 +35,8 @@ if [[ -f ${HOME}/.bashrc ]]; then
   if grep -Eq 'aliases=\([^)]*([[:space:]]|^)git([[:space:]]|\))' "${HOME}/.bashrc"; then
     fail "~/.bashrc requests the unavailable Oh My Bash git alias module"
   fi
+  # The command substitution is intentionally matched as literal text.
+  # shellcheck disable=SC2016
   if grep -Fq 'eval "$(mise activate bash)"' "${HOME}/.bashrc"; then
     pass "mise is activated by ~/.bashrc"
   else
