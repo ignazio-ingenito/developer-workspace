@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-required=(code-server bash git gh tmux mise chezmoi sops age kubectl helm kustomize tofu ansible jq yq rg ssh codex bw node npm)
+required=(code-server bash git gh tmux mise chezmoi sops age kubectl helm kustomize tofu ansible jq yq rg ssh codex bw node npm workspace-doctor workspace-tmux)
 for binary in "${required[@]}"; do
   command -v "$binary" >/dev/null || { echo "missing: $binary" >&2; exit 1; }
 done
@@ -20,6 +20,8 @@ helm version --short
 kustomize version
 tofu version
 chezmoi --version
+
+/usr/local/lib/developer-workspace/test-shell-bootstrap.sh
 
 code-server --extensions-dir "$HOME/.local/share/code-server/extensions" --list-extensions \
   | grep -Fx redhat.vscode-yaml
