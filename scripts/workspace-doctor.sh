@@ -23,33 +23,33 @@ else
 fi
 
 if [[ -d ${HOME}/.ssh && $(stat -c '%a' "${HOME}/.ssh" 2>/dev/null) == 700 ]]; then
-  pass "~/.ssh permissions are 700"
+  pass "SSH directory permissions are 700"
 else
-  fail "~/.ssh must exist with mode 700"
+  fail "SSH directory must exist with mode 700"
 fi
 
 if [[ -f ${HOME}/.bashrc ]]; then
   if grep -Eq 'plugins=\([^)]*([[:space:]]|^)mise([[:space:]]|\))' "${HOME}/.bashrc"; then
-    fail "~/.bashrc requests the unavailable Oh My Bash mise plugin"
+    fail ".bashrc requests the unavailable Oh My Bash mise plugin"
   fi
   if grep -Eq 'aliases=\([^)]*([[:space:]]|^)git([[:space:]]|\))' "${HOME}/.bashrc"; then
-    fail "~/.bashrc requests the unavailable Oh My Bash git alias module"
+    fail ".bashrc requests the unavailable Oh My Bash git alias module"
   fi
   # The command substitution is intentionally matched as literal text.
   # shellcheck disable=SC2016
   if grep -Fq 'eval "$(mise activate bash)"' "${HOME}/.bashrc"; then
-    pass "mise is activated by ~/.bashrc"
+    pass "mise is activated by .bashrc"
   else
-    warn "mise activation is absent from ~/.bashrc"
+    warn "mise activation is absent from .bashrc"
   fi
 else
-  fail "~/.bashrc is missing"
+  fail ".bashrc is missing"
 fi
 
 if [[ -f ${HOME}/.tmux.conf ]]; then
-  pass "~/.tmux.conf exists"
+  pass ".tmux.conf exists"
 else
-  fail "~/.tmux.conf is missing"
+  fail ".tmux.conf is missing"
 fi
 
 if [[ -d ${HOME}/.local/share/code-server/extensions ]]; then
