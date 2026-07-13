@@ -1,8 +1,9 @@
 # Operator bootstrap and recovery
 
-This runbook completes `ignazio-ingenito/homelab#300`. Run the commands inside
-the Developer Workspace. Interactive credentials and private keys stay in the
-persistent home; none belongs in the image or Git.
+This runbook supports the acceptance workflow for
+`ignazio-ingenito/homelab#300`. Run the commands inside the Developer
+Workspace. Interactive credentials and private keys stay in the persistent
+home; none belongs in the image or Git.
 
 ## 1. Migrate the existing shell baseline
 
@@ -28,12 +29,32 @@ Create a private repository named `dotfiles` in GitHub. Do not initialize it
 with secrets, an SSH private key, an age private key, Codex state, Bitwarden
 state, or GitHub tokens.
 
-After Git SSH is working:
+Create the private repository without a README, license, or other initial file.
+After Git SSH is working, populate it from the existing workspace:
 
 ```bash
 chezmoi init git@github.com:ignazio-ingenito/dotfiles.git
+chezmoi add ~/.bashrc ~/.tmux.conf
+source_dir=$(chezmoi source-path)
+git -C "$source_dir" add .
+git -C "$source_dir" commit -m "feat(dotfiles): bootstrap developer workspace"
+git -C "$source_dir" push -u origin main
+```
+
+Verify the reproducible bootstrap from a clean test home before relying on it:
+
+```bash
+test_home=$(mktemp -d)
+HOME="$test_home" chezmoi init git@github.com:ignazio-ingenito/dotfiles.git
+HOME="$test_home" chezmoi diff
+HOME="$test_home" chezmoi apply --dry-run --verbose
+rm -rf "$test_home"
+```
+
+On the persistent home, review and apply explicitly:
+
+```bash
 chezmoi diff
-# Review every path. Applying is always explicit.
 chezmoi apply --dry-run --verbose
 chezmoi apply --verbose
 ```
@@ -114,16 +135,31 @@ master password or session value in shell history, dotfiles, or Kubernetes.
 
 ## 6. SOPS and age
 
-Store the workstation age identity at
-`~/.config/sops/age/keys.txt` with mode `600`. Keep a recovery copy in
-Vaultwarden; never commit the private identity.
+The repository is encrypted to the age recipient declared in the root
+`.sops.yaml`. Retrieve the existing matching identity from Vaultwarden or the
+approved recovery backup; generating an unrelated key will not decrypt the
+existing manifests. Store the identity at `~/.config/sops/age/keys.txt` with
+mode `600` and never commit it.
 
 ```bash
 install -d -m 0700 ~/.config/sops/age
-age-keygen -o ~/.config/sops/age/keys.txt
+# Retrieve the existing identity without printing it to the terminal.
+# Replace the placeholder with the approved Vaultwarden item name or ID.
+umask 077
+bw get notes '<homelab SOPS age identity>' \
+  > ~/.config/sops/age/keys.txt
 chmod 600 ~/.config/sops/age/keys.txt
 age-keygen -y ~/.config/sops/age/keys.txt
 ```
+
+The derived public recipient must be exactly:
+
+```text
+age1nrxrxedv7ersz0jhawgljcnxhjmgxzkkdh5pdzj0f8c2yern0u0qahp5tu
+```
+
+Stop if it differs. Adding or rotating recipients requires a separate reviewed
+change to `homelab`; it is not part of this bootstrap.
 
 Use an approved encrypted manifest from `homelab` for the acceptance test:
 

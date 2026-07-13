@@ -32,7 +32,15 @@ if grep -Eq 'aliases=\([^)]*([[:space:]]|^)git([[:space:]]|\))' "$home/.bashrc";
   exit 1
 fi
 
-shell_output=$(HOME="$home" bash --noprofile --norc -i -c 'exit' 2>&1 || true)
+set +e
+shell_output=$(HOME="$home" bash --noprofile --norc -i -c 'exit' 2>&1)
+shell_status=$?
+set -e
+if ((shell_status != 0)); then
+  printf '%s\n' "$shell_output" >&2
+  echo "interactive shell startup failed with status $shell_status" >&2
+  exit 1
+fi
 if grep -Fq 'module_require' <<<"$shell_output"; then
   printf '%s\n' "$shell_output" >&2
   exit 1
