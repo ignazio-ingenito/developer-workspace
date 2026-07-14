@@ -28,6 +28,10 @@ Most command-line tools are installed in the persistent, writable home through
 to update `mise`, its managed tools, and Codex with one command. The practical
 guide is in `docs/TOOL-LIFECYCLE.md`.
 
+Personal SSH agent sharing is managed by chezmoi, not by project repositories
+or this image repository. The expected layout, Bash snippet, checks, and manual
+post-Pod-recreation step are documented in `docs/SSH-AGENT.md`.
+
 ## Work on two repositories at the same time
 
 Keep each repository in its own browser tab and tmux session. The example below
