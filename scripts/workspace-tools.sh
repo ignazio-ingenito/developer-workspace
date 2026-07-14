@@ -13,8 +13,9 @@ codex_attempt_stamp="$state_dir/codex-update-attempt"
 codex_lock="$state_dir/codex-update.lock"
 
 tools=(
-  codex code-server node npm git gh tmux mise chezmoi bw sops age kubectl
-  helm kustomize tofu ansible jq yq rg ssh bash
+  codex code-server node npm npx git gh tmux mise chezmoi bw sops age kubectl
+  helm kustomize tofu ansible jq yq rg fdfind curl gpg less make python3
+  shellcheck sudo unzip wget ssh bash
 )
 
 usage() {
@@ -44,6 +45,14 @@ stdout_first_line() {
   local output
   output=$("$@" 2>/dev/null || true)
   printf '%s\n' "$output" | sed -n '1p'
+}
+
+version_field() {
+  local field=$1
+  shift
+  local output
+  output=$("$@" 2>/dev/null || true)
+  printf '%s\n' "$output" | sed -n "s/^${field}: //p" | sed -n '1p'
 }
 
 tool_path() {
@@ -80,6 +89,7 @@ tool_version() {
     code-server) first_line code-server --version ;;
     node) first_line node --version ;;
     npm) stdout_first_line npm --version ;;
+    npx) stdout_first_line npx --version ;;
     git) first_line git --version ;;
     gh) first_line gh --version ;;
     tmux) first_line tmux -V ;;
@@ -96,6 +106,16 @@ tool_version() {
     jq) first_line jq --version ;;
     yq) first_line yq --version ;;
     rg) first_line rg --version ;;
+    fdfind) first_line fdfind --version ;;
+    curl) first_line curl --version ;;
+    gpg) first_line gpg --version ;;
+    less) first_line less --version ;;
+    make) first_line make --version ;;
+    python3) first_line python3 --version ;;
+    shellcheck) version_field version shellcheck --version ;;
+    sudo) stdout_first_line dpkg-query -W '-f=${Version}\n' sudo ;;
+    unzip) first_line unzip -v ;;
+    wget) first_line wget --version ;;
     ssh) first_line ssh -V ;;
     bash) first_line bash --version ;;
     *) printf '%s\n' 'unknown' ;;
@@ -143,7 +163,7 @@ show_status() {
     fi
   fi
 
-  printf '\nImage-owned tools are updated by Renovate, image rebuild, and rollout.\n'
+  printf '\nImage-owned tools are updated by Renovate and/or a base-image refresh, then rebuilt and rolled out.\n'
   printf 'Codex is checked automatically before a new Codex session starts.\n'
 }
 

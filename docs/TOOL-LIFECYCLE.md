@@ -22,7 +22,7 @@ Each tool has one owner and one active installation.
 
 | Owner | Examples | Location | Update method |
 | --- | --- | --- | --- |
-| Image | code-server, Git, GitHub CLI, tmux, kubectl, Helm, SOPS, OpenTofu, Bitwarden CLI, chezmoi, mise | `/usr` and `/usr/local` | Renovate PR, image rebuild, and rollout |
+| Image | code-server, operating-system utilities, GitHub CLI, kubectl, Helm, SOPS, OpenTofu, Bitwarden CLI, chezmoi, mise | `/usr` and `/usr/local` | Renovate and/or base-image refresh, image rebuild, and rollout |
 | Persistent home | Codex | `~/.local/libexec/codex` and `~/.codex` | Automatic before a new Codex session |
 | Project | Go, Python, Node, dbt, and other project toolchains | mise data directory | The repository's `mise.toml` |
 | User configuration | Shell, Git preferences, and personal extensions | Persistent home | chezmoi or code-server |
@@ -87,8 +87,10 @@ the launcher.
 ## Image-owned updates
 
 Image-owned tools are deliberately not changed in place. Renovate checks the
-pinned versions in the repository and opens reviewable pull requests. After a
-PR passes the smoke tests, publish and roll out a new immutable image.
+explicitly pinned versions in the repository and opens reviewable pull
+requests. Debian packages are refreshed when the image is rebuilt from its
+updated base. After a change passes the smoke tests, publish and roll out a new
+immutable image.
 
 `workspace-tools update` reports this boundary instead of attempting an update
 that the read-only filesystem cannot persist.
