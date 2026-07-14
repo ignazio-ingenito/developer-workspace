@@ -12,6 +12,7 @@ printf '%s\n' baseline > "$baseline_extensions/redhat.vscode-yaml-test/source"
 
 HOME="$home" \
 WORKSPACES_ROOT="$workspaces" \
+WORKSPACE_TOOLS_BOOTSTRAP=false \
 DEVELOPER_WORKSPACE_BASELINE_EXTENSIONS="$baseline_extensions" \
 /usr/local/lib/developer-workspace/entrypoint.sh true
 
@@ -50,6 +51,7 @@ printf '%s\n' '# user-owned' > "$home/.bashrc"
 printf '%s\n' user-owned > "$home/.local/share/code-server/extensions/redhat.vscode-yaml-test/source"
 HOME="$home" \
 WORKSPACES_ROOT="$workspaces" \
+WORKSPACE_TOOLS_BOOTSTRAP=false \
 DEVELOPER_WORKSPACE_BASELINE_EXTENSIONS="$baseline_extensions" \
 /usr/local/lib/developer-workspace/entrypoint.sh true
 grep -Fxq '# user-owned' "$home/.bashrc"

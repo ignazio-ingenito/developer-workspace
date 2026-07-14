@@ -3,18 +3,61 @@ set -u
 
 failures=0
 warnings=0
+codex_install_dir=${CODEX_INSTALL_DIR:-${HOME}/.local/libexec/codex}
+codex_real="$codex_install_dir/codex"
 
 pass() { printf 'ok: %s\n' "$1"; }
 warn() { printf 'warning: %s\n' "$1" >&2; warnings=$((warnings + 1)); }
 fail() { printf 'error: %s\n' "$1" >&2; failures=$((failures + 1)); }
 
-for binary in bash git gh tmux mise chezmoi codex bw sops age ssh ssh-agent code-server; do
+for binary in bash git gh tmux mise chezmoi codex workspace-tools bw sops age kubectl helm kustomize tofu ansible jq yq rg fd shellcheck node npm python3 uv ssh ssh-agent code-server; do
   if command -v "$binary" >/dev/null 2>&1; then
     pass "$binary is available"
   else
     fail "$binary is missing"
   fi
 done
+
+if [[ -x ${HOME}/.local/bin/mise ]]; then
+  pass "mise active binary is in persistent home"
+else
+  fail "mise active binary is missing from ~/.local/bin; run workspace-tools update"
+fi
+
+for binary in gh chezmoi bw sops age kubectl helm kustomize tofu ansible jq yq rg fd shellcheck node npm python3 uv; do
+  binary_path=$(command -v "$binary" 2>/dev/null || true)
+  case $binary_path in
+    "$HOME"/*) pass "$binary is active from persistent home" ;;
+    *) fail "$binary must be active from persistent home; run workspace-tools update and open a new shell" ;;
+  esac
+done
+
+if [[ $(command -v codex 2>/dev/null) == /usr/local/bin/codex ]]; then
+  pass "Codex uses the managed launcher"
+else
+  fail "Codex must resolve to /usr/local/bin/codex; run workspace-tools update and hash -r"
+fi
+
+if [[ -x $codex_real ]]; then
+  pass "Codex standalone installation is present in persistent home"
+  pass "Codex active version is $("$codex_real" --version 2>/dev/null)"
+else
+  warn "Codex standalone installation is absent; the first Codex launch will install it"
+fi
+
+if [[ -e ${HOME}/.local/bin/codex || -L ${HOME}/.local/bin/codex ]]; then
+  fail "legacy Codex command in ~/.local/bin shadows the managed launcher; run workspace-tools update"
+fi
+
+if [[ -d /usr/local/lib/node_modules/@openai/codex ]]; then
+  fail "legacy image-owned npm Codex installation is still present"
+fi
+
+if workspace-tools status >/dev/null 2>&1; then
+  pass "workspace-tools can inspect the tool inventory"
+else
+  fail "workspace-tools status failed"
+fi
 
 if [[ ${BW_SERVER:-} == "https://vault.skunklabs.uk" ]]; then
   pass "Bitwarden server is vault.skunklabs.uk"

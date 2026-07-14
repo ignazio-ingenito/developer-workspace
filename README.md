@@ -23,6 +23,11 @@ make smoke
 The operator bootstrap, credential boundaries, tmux recovery flow, and live
 acceptance checks are documented in `docs/OPERATOR-BOOTSTRAP.md`.
 
+Most command-line tools are installed in the persistent, writable home through
+`mise`. Run `workspace-tools` to see all versions and `workspace-tools update`
+to update `mise`, its managed tools, and Codex with one command. The practical
+guide is in `docs/TOOL-LIFECYCLE.md`.
+
 ## Work on two repositories at the same time
 
 Keep each repository in its own browser tab and tmux session. The example below
