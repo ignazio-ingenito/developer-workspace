@@ -5,14 +5,6 @@
   "automerge": false,
   "customManagers": [
     {"customType":"regex","managerFilePatterns":["/^Dockerfile$/"],"matchStrings":["ARG CODE_SERVER_VERSION=(?<currentValue>[^\\s]+)"],"datasourceTemplate":"docker","depNameTemplate":"codercom/code-server"},
-    {"customType":"regex","managerFilePatterns":["/^Dockerfile$/"],"matchStrings":["ARG NODE_VERSION=(?<currentValue>[^\\s]+)"],"datasourceTemplate":"docker","depNameTemplate":"node"},
-    {"customType":"regex","managerFilePatterns":["/^Dockerfile$/"],"matchStrings":["ARG MISE_VERSION=(?<currentValue>[^\\s]+)"],"datasourceTemplate":"github-releases","depNameTemplate":"jdx/mise"},
-    {"customType":"regex","managerFilePatterns":["/^Dockerfile$/"],"matchStrings":["ARG SOPS_VERSION=(?<currentValue>[^\\s]+)"],"datasourceTemplate":"github-releases","depNameTemplate":"getsops/sops"},
-    {"customType":"regex","managerFilePatterns":["/^Dockerfile$/"],"matchStrings":["ARG KUBECTL_VERSION=(?<currentValue>[^\\s]+)"],"datasourceTemplate":"github-releases","depNameTemplate":"kubernetes/kubernetes"},
-    {"customType":"regex","managerFilePatterns":["/^Dockerfile$/"],"matchStrings":["ARG HELM_VERSION=(?<currentValue>[^\\s]+)"],"datasourceTemplate":"github-releases","depNameTemplate":"helm/helm"},
-    {"customType":"regex","managerFilePatterns":["/^Dockerfile$/"],"matchStrings":["ARG KUSTOMIZE_VERSION=(?<currentValue>[^\\s]+)"],"datasourceTemplate":"github-releases","depNameTemplate":"kubernetes-sigs/kustomize"},
-    {"customType":"regex","managerFilePatterns":["/^Dockerfile$/"],"matchStrings":["ARG TOFU_VERSION=(?<currentValue>[^\\s]+)"],"datasourceTemplate":"github-releases","depNameTemplate":"opentofu/opentofu"},
-    {"customType":"regex","managerFilePatterns":["/^Dockerfile$/"],"matchStrings":["ARG CHEZMOI_VERSION=(?<currentValue>[^\\s]+)"],"datasourceTemplate":"github-releases","depNameTemplate":"twpayne/chezmoi"},
-    {"customType":"regex","managerFilePatterns":["/^Dockerfile$/"],"matchStrings":["ARG BITWARDEN_CLI_VERSION=(?<currentValue>[^\\s]+)"],"datasourceTemplate":"npm","depNameTemplate":"@bitwarden/cli"}
+    {"customType":"regex","managerFilePatterns":["/^Dockerfile$/"],"matchStrings":["ARG MISE_VERSION=(?<currentValue>[^\\s]+)"],"datasourceTemplate":"github-releases","depNameTemplate":"jdx/mise"}
   ]
 }

@@ -1,96 +1,108 @@
-# Workspace tool lifecycle
+# Workspace tools
 
-The Developer Workspace uses one command to inspect its tools:
+Most command-line tools live in the persistent, writable home. They survive a
+Pod restart and can be updated without rebuilding the Developer Workspace
+image.
+
+## The two commands to remember
+
+Show every tool, its version, owner, update method, and active path:
 
 ```bash
 workspace-tools
 ```
 
-The output shows each tool's installed version, active path, owner, and update
-method. To update every runtime-managed tool, run:
+Update `mise`, all tools managed by `mise`, and Codex:
 
 ```bash
 workspace-tools update
+hash -r
 ```
 
-The command updates tools that are allowed to change in the running workspace.
-It does not try to modify the read-only container filesystem.
+Open a new terminal after the update if an old terminal still resolves a
+previous command path.
 
-## Ownership rules
+## Where tools live
 
-Each tool has one owner and one active installation.
-
-| Owner | Examples | Location | Update method |
+| Owner | Tools | Location | Update |
 | --- | --- | --- | --- |
-| Image | code-server, operating-system utilities, GitHub CLI, kubectl, Helm, SOPS, OpenTofu, Bitwarden CLI, chezmoi, mise | `/usr` and `/usr/local` | Renovate and/or base-image refresh, image rebuild, and rollout |
-| Persistent home | Codex | `~/.local/libexec/codex` and `~/.codex` | Automatic before a new Codex session |
-| Project | Go, Python, Node, dbt, and other project toolchains | mise data directory | The repository's `mise.toml` |
-| User configuration | Shell, Git preferences, and personal extensions | Persistent home | chezmoi or code-server |
+| Persistent home | mise, Node, Python, uv, GitHub CLI, chezmoi, Bitwarden CLI, SOPS, age, kubectl, Helm, kustomize, OpenTofu, Ansible, jq, yq, ripgrep, fd, ShellCheck | `~/.local` and `~/.local/share/mise` | `workspace-tools update` |
+| Persistent home | Codex | `~/.local/libexec/codex` | Automatically before a new Codex session, or `workspace-tools update` |
+| Image bootstrap | code-server, Bash, Git, SSH, tmux, curl, GnuPG and recovery utilities | `/usr` and `/usr/local` | Image rebuild and rollout |
+| Project | Versions required by one repository | The repository's `mise.toml` | Change and commit `mise.toml` |
 
-Do not install a second copy of an image-owned tool in the persistent home.
-Do not use `sudo npm install --global` to update tools in a running workspace.
+The image contains a small recovery copy of `mise`. On first use it is copied
+to `~/.local/bin/mise`; that writable copy is the active binary and can update
+itself.
+
+## First start after deploying the image
+
+The entrypoint installs missing home tools and migrates Codex once. On later
+starts it skips this step unless the workspace tool list changed or Codex is
+missing.
+
+If the package registry is temporarily unavailable, code-server still starts.
+Retry from a terminal:
+
+```bash
+workspace-tools update
+hash -r
+workspace-doctor
+```
+
+The first installation can take a few minutes. Existing tools remain usable if
+a later update fails.
 
 ## Codex automatic updates
 
-`codex` is a small image-owned launcher. The real Codex standalone installation
-lives in the persistent home.
+Starting `codex` checks for a newer standalone release when the last successful
+check is older than six hours. It never restarts a Codex process that is already
+running. A new process uses the updated version.
 
-Before a new Codex process starts, the launcher checks whether the last
-successful update is older than six hours. When a check is due, it uses the
-official standalone installer to install or update Codex. The installer uses a
-lock, versioned release directories, and an atomic `current` link.
-
-An update never restarts a Codex process that is already running. New sessions
-use the new version. If the update service is temporarily unavailable, the
-launcher warns and starts the installed version. Only a first installation with
-no usable Codex binary fails closed.
-
-Run an update immediately with:
+Update only Codex immediately with:
 
 ```bash
 workspace-tools update codex
 ```
 
-Automatic checks can be configured with:
+Automatic checks use these defaults:
 
 ```bash
 CODEX_AUTO_UPDATE=true
 CODEX_AUTO_UPDATE_INTERVAL=21600
 CODEX_AUTO_UPDATE_FAILURE_BACKOFF=900
+CODEX_AUTO_UPDATE_TIMEOUT=120
 ```
 
-The intervals are expressed in seconds. Set `CODEX_AUTO_UPDATE=false` only for
-diagnostics or controlled tests.
+If an update fails and Codex is already installed, the launcher warns and uses
+the installed version. A first installation fails only when no usable Codex
+binary exists.
 
-## Migrating an older workspace home
+## Migrating an older workspace
 
-Older workspace homes may contain an npm-managed Codex command in
-`~/.local/bin`. After the new image is deployed, run:
+After deploying this image over an existing persistent home, run:
 
 ```bash
 workspace-tools update
 hash -r
-command -v codex
+workspace-tools
 workspace-doctor
 ```
 
-The update command installs standalone Codex first, then retires the legacy
-user command. `command -v codex` must return:
+The command removes or archives the old npm-managed Codex command only after
+the standalone installation succeeds. Do not use `sudo npm install --global`
+to update workspace tools.
 
-```text
-/usr/local/bin/codex
+## Project-specific versions
+
+The workspace list provides convenient defaults. A repository remains free to
+pin another version in its own `mise.toml`:
+
+```bash
+cd /workspaces/my-project
+mise use node@24
+mise install
 ```
 
-`workspace-doctor` reports an error if a legacy npm installation still shadows
-the launcher.
-
-## Image-owned updates
-
-Image-owned tools are deliberately not changed in place. Renovate checks the
-explicitly pinned versions in the repository and opens reviewable pull
-requests. Debian packages are refreshed when the image is rebuilt from its
-updated base. After a change passes the smoke tests, publish and roll out a new
-immutable image.
-
-`workspace-tools update` reports this boundary instead of attempting an update
-that the read-only filesystem cannot persist.
+Commit the repository's `mise.toml` so every developer and CI job uses the same
+project toolchain.

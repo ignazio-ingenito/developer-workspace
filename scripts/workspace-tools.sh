@@ -2,32 +2,41 @@
 set -uo pipefail
 
 home=${HOME:-/home/coder}
+mise_command=${MISE_COMMAND:-/usr/local/bin/mise}
+mise_config=${MISE_GLOBAL_CONFIG_FILE:-/opt/developer-workspace/mise-workspace-tools.toml}
+mise_user_binary=${MISE_USER_BINARY:-$home/.local/bin/mise}
 codex_install_dir=${CODEX_INSTALL_DIR:-$home/.local/libexec/codex}
 codex_real="$codex_install_dir/codex"
 codex_installer_url=${CODEX_INSTALLER_URL:-https://chatgpt.com/codex/install.sh}
 codex_update_interval=${CODEX_AUTO_UPDATE_INTERVAL:-21600}
 codex_failure_backoff=${CODEX_AUTO_UPDATE_FAILURE_BACKOFF:-900}
+codex_update_timeout=${CODEX_AUTO_UPDATE_TIMEOUT:-120}
 state_dir="$home/.cache/developer-workspace"
+mise_bootstrap_stamp="$state_dir/mise-bootstrap"
 codex_success_stamp="$state_dir/codex-update-success"
 codex_attempt_stamp="$state_dir/codex-update-attempt"
 codex_lock="$state_dir/codex-update.lock"
 
-tools=(
-  codex code-server node npm npx git gh tmux mise chezmoi bw sops age kubectl
-  helm kustomize tofu ansible jq yq rg fdfind curl gpg less make python3
-  shellcheck sudo unzip wget ssh bash
+home_tools=(
+  mise node npm npx python3 uv gh chezmoi bw sops age kubectl helm kustomize tofu
+  ansible jq yq rg fd shellcheck
 )
+image_tools=(
+  code-server git tmux curl gpg less make sudo unzip wget ssh bash
+)
+tools=(codex "${home_tools[@]}" "${image_tools[@]}")
 
 usage() {
   cat <<'EOF'
 Usage:
-  workspace-tools                 Show installed workspace tool versions
-  workspace-tools status          Show installed workspace tool versions
-  workspace-tools update          Update runtime-managed tools
-  workspace-tools update codex    Update Codex now
+  workspace-tools                 Show versions, ownership, and active paths
+  workspace-tools status          Show versions, ownership, and active paths
+  workspace-tools update          Update mise, all mise-managed tools, and Codex
+  workspace-tools update codex    Update only Codex
+  workspace-tools bootstrap       Install missing workspace tools in the home
 
-Image-owned tools are updated through Renovate, an image rebuild, and rollout.
-Project toolchains remain owned by each repository through mise.
+Project-specific versions remain owned by each repository through mise.toml.
+Operating-system bootstrap tools require an image rebuild.
 EOF
 }
 
@@ -55,47 +64,131 @@ version_field() {
   printf '%s\n' "$output" | sed -n "s/^${field}: //p" | sed -n '1p'
 }
 
+in_list() {
+  local candidate=$1 item
+  shift
+  for item in "$@"; do
+    [[ $candidate == "$item" ]] && return 0
+  done
+  return 1
+}
+
+mise_in_home() {
+  (
+    cd "$home" 2>/dev/null || exit 1
+    "$mise_command" "$@"
+  )
+}
+
+activate_mise_tools() {
+  local bin_path
+  while IFS= read -r bin_path; do
+    [[ -n $bin_path ]] && PATH="$bin_path:$PATH"
+  done < <(mise_in_home bin-paths 2>/dev/null || true)
+  export PATH
+}
+
+mise_config_signature() {
+  [[ -f $mise_config ]] || return 1
+  cksum "$mise_config" | awk '{print $1 ":" $2}'
+}
+
+mark_mise_bootstrap() {
+  local signature
+  signature=$(mise_config_signature) || return 0
+  mkdir -p "$state_dir"
+  printf '%s\n' "$signature" >"$mise_bootstrap_stamp"
+}
+
+mise_bootstrap_is_current() {
+  local expected actual
+  [[ -f $mise_bootstrap_stamp ]] || return 1
+  expected=$(mise_config_signature) || return 1
+  actual=$(sed -n '1p' "$mise_bootstrap_stamp" 2>/dev/null)
+  [[ $actual == "$expected" ]]
+}
+
+bootstrap_mise_tools() {
+  local mode=${1:-cached}
+
+  if [[ $mode == cached ]] && mise_bootstrap_is_current; then
+    activate_mise_tools
+    return 0
+  fi
+
+  if ! "$mise_command" --version >/dev/null 2>&1; then
+    warn 'mise could not be initialized in the persistent home'
+    return 1
+  fi
+
+  printf 'Installing workspace tools in the persistent home...\n' >&2
+  mise_in_home install node python uv || return
+  activate_mise_tools
+  mise_in_home install || return
+  activate_mise_tools
+  mark_mise_bootstrap
+}
+
+update_mise_tools() {
+  if ! "$mise_command" --version >/dev/null 2>&1; then
+    warn 'mise could not be initialized in the persistent home'
+    return 1
+  fi
+
+  printf 'Updating mise in the persistent home...\n' >&2
+  if ! "$mise_command" -y self-update; then
+    warn 'mise self-update failed; continuing with the installed version'
+  fi
+
+  bootstrap_mise_tools force || return
+  printf 'Updating mise-managed workspace tools...\n' >&2
+  mise_in_home -y upgrade || return
+  activate_mise_tools
+  mark_mise_bootstrap
+}
+
 tool_path() {
   local tool=$1
 
-  if [[ $tool == codex ]]; then
-    if [[ -x $codex_real ]]; then
-      printf '%s\n' "$codex_real"
-    else
-      printf '%s\n' '-'
-    fi
-    return
-  fi
-
-  command -v "$tool" 2>/dev/null || printf '%s\n' '-'
+  case "$tool" in
+    codex)
+      [[ -x $codex_real ]] && printf '%s\n' "$codex_real" || printf '%s\n' '-'
+      ;;
+    mise)
+      [[ -x $mise_user_binary ]] && printf '%s\n' "$mise_user_binary" || printf '%s\n' '-'
+      ;;
+    *) command -v "$tool" 2>/dev/null || printf '%s\n' '-' ;;
+  esac
 }
 
 tool_version() {
   local tool=$1
 
-  if [[ $tool != codex ]] && ! command -v "$tool" >/dev/null 2>&1; then
+  if [[ $tool == codex ]]; then
+    [[ -x $codex_real ]] && first_line "$codex_real" --version || printf '%s\n' 'not installed'
+    return
+  fi
+
+  if [[ $tool == mise ]]; then
+    [[ -x $mise_user_binary ]] && first_line "$mise_user_binary" --version || printf '%s\n' 'not installed'
+    return
+  fi
+
+  if ! command -v "$tool" >/dev/null 2>&1; then
     printf '%s\n' 'missing'
     return
   fi
 
   case "$tool" in
-    codex)
-      if [[ -x $codex_real ]]; then
-        first_line "$codex_real" --version
-      else
-        printf '%s\n' 'not installed'
-      fi
-      ;;
     code-server) first_line code-server --version ;;
     node) first_line node --version ;;
-    npm) stdout_first_line npm --version ;;
-    npx) stdout_first_line npx --version ;;
+    npm | npx | bw) stdout_first_line "$tool" --version ;;
+    python3) first_line python3 --version ;;
+    uv) first_line uv --version ;;
     git) first_line git --version ;;
     gh) first_line gh --version ;;
     tmux) first_line tmux -V ;;
-    mise) first_line mise --version ;;
     chezmoi) first_line chezmoi --version ;;
-    bw) first_line bw --version ;;
     sops) first_line sops --version ;;
     age) first_line age --version ;;
     kubectl) first_line kubectl version --client=true ;;
@@ -106,12 +199,11 @@ tool_version() {
     jq) first_line jq --version ;;
     yq) first_line yq --version ;;
     rg) first_line rg --version ;;
-    fdfind) first_line fdfind --version ;;
+    fd) first_line fd --version ;;
     curl) first_line curl --version ;;
     gpg) first_line gpg --version ;;
     less) first_line less --version ;;
     make) first_line make --version ;;
-    python3) first_line python3 --version ;;
     shellcheck) version_field version shellcheck --version ;;
     sudo) stdout_first_line dpkg-query -W "-f=\${Version}\n" sudo ;;
     unzip) first_line unzip -v ;;
@@ -123,7 +215,8 @@ tool_version() {
 }
 
 tool_owner() {
-  if [[ $1 == codex ]]; then
+  local tool=$1
+  if [[ $tool == codex ]] || in_list "$tool" "${home_tools[@]}"; then
     printf '%s\n' 'home'
   else
     printf '%s\n' 'image'
@@ -131,8 +224,11 @@ tool_owner() {
 }
 
 tool_update_method() {
-  if [[ $1 == codex ]]; then
+  local tool=$1
+  if [[ $tool == codex ]]; then
     printf '%s\n' 'automatic'
+  elif in_list "$tool" "${home_tools[@]}"; then
+    printf '%s\n' 'mise'
   else
     printf '%s\n' 'rebuild'
   fi
@@ -140,6 +236,9 @@ tool_update_method() {
 
 show_status() {
   local tool version owner method path
+
+  "$mise_command" --version >/dev/null 2>&1 || true
+  activate_mise_tools
 
   printf '%-13s %-7s %-11s %-30s %s\n' \
     'TOOL' 'OWNER' 'UPDATE' 'VERSION' 'ACTIVE PATH'
@@ -155,16 +254,9 @@ show_status() {
       "$tool" "$owner" "$method" "$version" "$path"
   done
 
-  if command -v mise >/dev/null 2>&1; then
-    local project_tools
-    project_tools=$(mise current 2>/dev/null || true)
-    if [[ -n $project_tools ]]; then
-      printf '\nProject toolchains (mise):\n%s\n' "$project_tools"
-    fi
-  fi
-
-  printf '\nImage-owned tools are updated by Renovate and/or a base-image refresh, then rebuilt and rolled out.\n'
-  printf 'Codex is checked automatically before a new Codex session starts.\n'
+  printf '\nHome tools persist across Pod recreation and update with workspace-tools update.\n'
+  printf 'Image bootstrap tools require an image rebuild and rollout.\n'
+  printf 'Repository mise.toml files still control project-specific versions.\n'
 }
 
 file_is_younger_than() {
@@ -180,8 +272,12 @@ file_is_younger_than() {
 }
 
 run_codex_installer() {
-  local installer
+  local installer result
   installer=$(mktemp)
+
+  if [[ ! $codex_update_timeout =~ ^[1-9][0-9]*$ ]]; then
+    codex_update_timeout=120
+  fi
 
   if ! curl -fsSL --connect-timeout 10 --max-time 60 \
     "$codex_installer_url" -o "$installer"; then
@@ -190,12 +286,12 @@ run_codex_installer() {
   fi
 
   if command -v timeout >/dev/null 2>&1; then
-    timeout 300 env \
+    timeout "$codex_update_timeout" env \
       CODEX_HOME="$home/.codex" \
       CODEX_INSTALL_DIR="$codex_install_dir" \
       CODEX_NON_INTERACTIVE=1 \
       CODEX_RELEASE=latest \
-      PATH="/usr/local/bin:$codex_install_dir:$PATH" \
+      PATH="$PATH:$codex_install_dir" \
       sh "$installer"
   else
     env \
@@ -203,10 +299,10 @@ run_codex_installer() {
       CODEX_INSTALL_DIR="$codex_install_dir" \
       CODEX_NON_INTERACTIVE=1 \
       CODEX_RELEASE=latest \
-      PATH="/usr/local/bin:$codex_install_dir:$PATH" \
+      PATH="$PATH:$codex_install_dir" \
       sh "$installer"
   fi
-  local result=$?
+  result=$?
   rm -f "$installer"
   return "$result"
 }
@@ -279,18 +375,28 @@ update_codex() {
   return "$result"
 }
 
+bootstrap_all() {
+  local result=0
+
+  bootstrap_mise_tools cached || result=$?
+  if [[ ! -x $codex_real || -e $home/.local/bin/codex || -L $home/.local/bin/codex ]]; then
+    update_codex force || result=$?
+  fi
+  return "$result"
+}
+
 update_all() {
+  update_mise_tools || return
   update_codex force || return
-  printf '\nRuntime-managed tools are up to date.\n'
-  printf 'Image-owned tools require a Renovate PR, image rebuild, and rollout.\n\n'
+  printf '\nWorkspace tools are up to date.\n\n'
   show_status
+  printf '\nRun hash -r in shells that were already open.\n'
 }
 
 command_name=${1:-status}
 case "$command_name" in
-  status)
-    show_status
-    ;;
+  status) show_status ;;
+  bootstrap) bootstrap_all ;;
   update)
     case "${2:-all}" in
       all) update_all ;;
@@ -304,11 +410,6 @@ case "$command_name" in
       *) update_codex auto ;;
     esac
     ;;
-  help | --help | -h)
-    usage
-    ;;
-  *)
-    usage >&2
-    exit 2
-    ;;
+  help | --help | -h) usage ;;
+  *) usage >&2; exit 2 ;;
 esac

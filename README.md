@@ -23,9 +23,10 @@ make smoke
 The operator bootstrap, credential boundaries, tmux recovery flow, and live
 acceptance checks are documented in `docs/OPERATOR-BOOTSTRAP.md`.
 
-Tool ownership, version inspection, and update behavior are documented in
-`docs/TOOL-LIFECYCLE.md`. Run `workspace-tools` to inspect the active tool
-inventory and `workspace-tools update` to update runtime-managed tools.
+Most command-line tools are installed in the persistent, writable home through
+`mise`. Run `workspace-tools` to see all versions and `workspace-tools update`
+to update `mise`, its managed tools, and Codex with one command. The practical
+guide is in `docs/TOOL-LIFECYCLE.md`.
 
 ## Work on two repositories at the same time
 
