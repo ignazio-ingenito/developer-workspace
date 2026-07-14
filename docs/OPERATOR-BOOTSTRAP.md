@@ -106,6 +106,21 @@ Do not enable auto-merge.
 
 ## 4. Codex CLI
 
+Codex is installed as a standalone tool in the persistent home and is checked
+for updates automatically before a new Codex process starts. Inspect the full
+workspace tool inventory and force an update with:
+
+```bash
+workspace-tools
+workspace-tools update
+hash -r
+command -v codex
+codex --version
+```
+
+`command -v codex` must return `/usr/local/bin/codex`. The update command
+also retires the older npm-managed command from `~/.local/bin` when present.
+
 Authenticate interactively from a tmux session:
 
 ```bash
@@ -114,8 +129,11 @@ codex login
 codex
 ```
 
-The home directory is persistent, so Codex state survives Pod recreation. Never
-copy its state into the image or dotfiles.
+The home directory is persistent, so the standalone installation and Codex
+state survive Pod recreation. Automatic updates never restart an active Codex
+process; the next process uses the new version. Never copy Codex state into the
+image or dotfiles. See `docs/TOOL-LIFECYCLE.md` for ownership and update
+rules.
 
 ## 5. Vaultwarden CLI
 

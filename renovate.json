@@ -13,7 +13,6 @@
     {"customType":"regex","managerFilePatterns":["/^Dockerfile$/"],"matchStrings":["ARG KUSTOMIZE_VERSION=(?<currentValue>[^\\s]+)"],"datasourceTemplate":"github-releases","depNameTemplate":"kubernetes-sigs/kustomize"},
     {"customType":"regex","managerFilePatterns":["/^Dockerfile$/"],"matchStrings":["ARG TOFU_VERSION=(?<currentValue>[^\\s]+)"],"datasourceTemplate":"github-releases","depNameTemplate":"opentofu/opentofu"},
     {"customType":"regex","managerFilePatterns":["/^Dockerfile$/"],"matchStrings":["ARG CHEZMOI_VERSION=(?<currentValue>[^\\s]+)"],"datasourceTemplate":"github-releases","depNameTemplate":"twpayne/chezmoi"},
-    {"customType":"regex","managerFilePatterns":["/^Dockerfile$/"],"matchStrings":["ARG CODEX_VERSION=(?<currentValue>[^\\s]+)"],"datasourceTemplate":"npm","depNameTemplate":"@openai/codex"},
     {"customType":"regex","managerFilePatterns":["/^Dockerfile$/"],"matchStrings":["ARG BITWARDEN_CLI_VERSION=(?<currentValue>[^\\s]+)"],"datasourceTemplate":"npm","depNameTemplate":"@bitwarden/cli"}
   ]
 }

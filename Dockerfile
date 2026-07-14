@@ -15,7 +15,6 @@ ARG HELM_VERSION=3.18.4
 ARG KUSTOMIZE_VERSION=5.7.1
 ARG TOFU_VERSION=1.10.6
 ARG CHEZMOI_VERSION=2.65.1
-ARG CODEX_VERSION=0.119.0
 ARG BITWARDEN_CLI_VERSION=2026.6.0
 ARG OH_MY_BASH_REF=627913b75855036cb5af2f3ad130c66a335e7382
 
@@ -24,7 +23,7 @@ SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
 RUN apt-get update && apt-get install -y --no-install-recommends \
     age ansible bash-completion ca-certificates curl fd-find git gnupg jq less \
     make openssh-client python3 python3-venv ripgrep shellcheck sudo tmux unzip \
-    wget yq \
+    util-linux wget yq \
  && mkdir -p /etc/apt/keyrings \
  && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
       -o /etc/apt/keyrings/githubcli-archive-keyring.gpg \
@@ -39,7 +38,6 @@ COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
 RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
  && ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
  && npm install --global \
-      "@openai/codex@${CODEX_VERSION}" \
       "@bitwarden/cli@${BITWARDEN_CLI_VERSION}" \
  && npm cache clean --force
 
@@ -121,12 +119,18 @@ RUN CODE_SERVER_EXTENSIONS_DIR=/opt/developer-workspace/code-server-extensions \
  && chmod -R a+rX /usr/local/lib/developer-workspace /opt/developer-workspace /opt/oh-my-bash \
  && chmod 0755 /usr/local/lib/developer-workspace/*.sh \
  && ln -s /usr/local/lib/developer-workspace/workspace-doctor.sh /usr/local/bin/workspace-doctor \
- && ln -s /usr/local/lib/developer-workspace/workspace-tmux.sh /usr/local/bin/workspace-tmux
+ && ln -s /usr/local/lib/developer-workspace/workspace-tmux.sh /usr/local/bin/workspace-tmux \
+ && ln -s /usr/local/lib/developer-workspace/workspace-tools.sh /usr/local/bin/workspace-tools \
+ && ln -s /usr/local/lib/developer-workspace/codex-launcher.sh /usr/local/bin/codex
 
 ENV HOME=/home/coder \
     SHELL=/bin/bash \
     MISE_DATA_DIR=/home/coder/.local/share/mise \
     MISE_CACHE_DIR=/home/coder/.cache/mise \
+    CODEX_INSTALL_DIR=/home/coder/.local/libexec/codex \
+    CODEX_AUTO_UPDATE=true \
+    CODEX_AUTO_UPDATE_INTERVAL=21600 \
+    CODEX_AUTO_UPDATE_FAILURE_BACKOFF=900 \
     BW_SERVER=https://vault.skunklabs.uk
 
 USER 1000

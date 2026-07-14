@@ -12,6 +12,8 @@ mkdir -p \
   "$home/.config/code-server" \
   "$extensions_dir" \
   "$home/.cache" \
+  "$home/.cache/developer-workspace" \
+  "$home/.local/libexec/codex" \
   "$home/.ssh" \
   "$home/.config/Bitwarden CLI" \
   "$home/.config/sops/age" \

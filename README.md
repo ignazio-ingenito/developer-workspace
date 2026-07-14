@@ -23,6 +23,10 @@ make smoke
 The operator bootstrap, credential boundaries, tmux recovery flow, and live
 acceptance checks are documented in `docs/OPERATOR-BOOTSTRAP.md`.
 
+Tool ownership, version inspection, and update behavior are documented in
+`docs/TOOL-LIFECYCLE.md`. Run `workspace-tools` to inspect the active tool
+inventory and `workspace-tools update` to update runtime-managed tools.
+
 ## Work on two repositories at the same time
 
 Keep each repository in its own browser tab and tmux session. The example below
