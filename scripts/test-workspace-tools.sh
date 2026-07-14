@@ -66,6 +66,18 @@ version=$(
 )
 test "$version" = 'codex-cli 9.9.9'
 
+rm -f \
+  "$test_home/.cache/developer-workspace/codex-update-success" \
+  "$test_home/.cache/developer-workspace/codex-update-attempt"
+version=$(
+  env "${common_env[@]}" \
+    CODEX_AUTO_UPDATE_FAILURE_BACKOFF=0 \
+    CODEX_INSTALLER_URL="file://$test_root/does-not-exist" \
+    WORKSPACE_TOOLS_COMMAND="$script_dir/workspace-tools.sh" \
+    "$script_dir/codex-launcher.sh" --version
+)
+test "$version" = 'codex-cli 9.9.9'
+
 env "${common_env[@]}" "$script_dir/workspace-tools.sh" status \
   | grep -F 'codex-cli 9.9.9' >/dev/null
 

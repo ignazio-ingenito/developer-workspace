@@ -113,7 +113,7 @@ tool_version() {
     make) first_line make --version ;;
     python3) first_line python3 --version ;;
     shellcheck) version_field version shellcheck --version ;;
-    sudo) stdout_first_line dpkg-query -W '-f=${Version}\n' sudo ;;
+    sudo) stdout_first_line dpkg-query -W "-f=\${Version}\n" sudo ;;
     unzip) first_line unzip -v ;;
     wget) first_line wget --version ;;
     ssh) first_line ssh -V ;;
