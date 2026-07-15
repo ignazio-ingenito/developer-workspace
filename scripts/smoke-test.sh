@@ -4,7 +4,7 @@ set -euo pipefail
 workspace-tools bootstrap
 eval "$(mise activate bash)"
 
-required=(code-server bash git gh tmux mise chezmoi sops age kubectl helm kustomize tofu ansible jq yq rg fd ssh codex workspace-tools bw node npm python3 uv shellcheck workspace-doctor workspace-tmux)
+required=(code-server bash git gh tmux mise chezmoi sops age kubectl helm kustomize tofu ansible jq yq rg fd ssh dig codex workspace-tools bw node npm python3 uv shellcheck workspace-doctor workspace-tmux)
 for binary in "${required[@]}"; do
   command -v "$binary" >/dev/null || { echo "missing: $binary" >&2; exit 1; }
 done
