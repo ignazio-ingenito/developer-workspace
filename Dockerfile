@@ -13,7 +13,7 @@ SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
 # Keep only the operating-system bootstrap in the immutable image. Fast-moving
 # developer CLIs are installed by mise in the persistent, writable home.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    bash-completion ca-certificates curl git gnupg less make openssh-client \
+    bash-completion ca-certificates curl dnsutils git gnupg less make openssh-client \
     sudo tmux unzip util-linux wget xz-utils \
  && rm -rf /var/lib/apt/lists/*
 
