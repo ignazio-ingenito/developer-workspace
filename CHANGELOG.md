@@ -13,12 +13,18 @@ All notable changes to this project are documented in this file.
 - **workspace:** Bootstrap operator environment (#5)
 - **tools:** Manage writable workspace tool lifecycle (#7)
 - **image:** Add DNS utilities (#8)
+- **changelog:** Centralize automation
 
 
 ### Documentation
 
 - **readme:** Add parallel repository workflow (#6)
 - Document personal ssh agent setup
+
+
+### Tests
+
+- **changelog:** Satisfy shellcheck
 
 
 ### CI
