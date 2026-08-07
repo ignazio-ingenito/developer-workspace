@@ -20,6 +20,7 @@ All notable changes to this project are documented in this file.
 
 - **readme:** Add parallel repository workflow (#6)
 - Document personal ssh agent setup
+- **changelog:** Document public caller access
 
 
 ### Tests
