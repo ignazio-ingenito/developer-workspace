@@ -4,6 +4,11 @@
 `.github/workflows/changelog-reusable.yml`. Applicable repositories call it
 from a minimal `pull_request` wrapper; they do not copy the git-cliff logic.
 
+`developer-workspace` is public because public caller repositories can use
+reusable workflows only from public repositories. Private callers can use this
+same public workflow. Credentials remain caller-scoped Actions secrets and are
+not stored in the reusable workflow repository.
+
 The workflow checks out the pull request head branch with complete history,
 regenerates `CHANGELOG.md`, and pushes `docs(changelog): update` to that same
 branch only when the file changed. A repository-local `cliff.toml` overrides
