@@ -16,16 +16,23 @@ All notable changes to this project are documented in this file.
 - **changelog:** Centralize automation
 
 
+### Bug fixes
+
+- **changelog:** Skip Dependabot pull requests
+
+
 ### Documentation
 
 - **readme:** Add parallel repository workflow (#6)
 - Document personal ssh agent setup
 - **changelog:** Document public caller access
+- **changelog:** Document Dependabot exclusion
 
 
 ### Tests
 
 - **changelog:** Satisfy shellcheck
+- **changelog:** Require Dependabot guard
 
 
 ### CI
@@ -37,3 +44,6 @@ All notable changes to this project are documented in this file.
 ### Maintenance
 
 - Initialize developer workspace repository
+- Merge pull request #10 from ignazio-ingenito/agent/centralize-changelog
+
+feat(changelog): centralize git-cliff automation
