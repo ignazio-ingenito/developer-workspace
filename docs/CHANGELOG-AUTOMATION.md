@@ -41,7 +41,8 @@ pushes do, so checks run against the new pull request head SHA.
 ## Security behavior
 
 The changelog job is skipped for forks, non-PR events, the repository default
-branch, and commits pushed by `ignazio-changelog[bot]`. It never uses
+branch, Dependabot pull requests, and commits pushed by
+`ignazio-changelog[bot]`. It never uses
 `pull_request_target`, personal tokens, force push, or broad staging. Only
 `CHANGELOG.md` is staged, and the staged path is checked before commit.
 
