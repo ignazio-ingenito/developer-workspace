@@ -18,7 +18,8 @@ All notable changes to this project are documented in this file.
 
 ### Bug fixes
 
-- **changelog:** Skip Dependabot pull requests
+- **changelog:** Skip Dependabot pull requests (#11)
+- **changelog:** Checkout pull request head SHA
 
 
 ### Documentation
@@ -26,13 +27,11 @@ All notable changes to this project are documented in this file.
 - **readme:** Add parallel repository workflow (#6)
 - Document personal ssh agent setup
 - **changelog:** Document public caller access
-- **changelog:** Document Dependabot exclusion
 
 
 ### Tests
 
 - **changelog:** Satisfy shellcheck
-- **changelog:** Require Dependabot guard
 
 
 ### CI
