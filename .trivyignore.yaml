@@ -1,0 +1,38 @@
+vulnerabilities:
+  # EditorConfig 0.18.2 è la release upstream più recente al 2026-08-10.
+  # L'eccezione è legata al path/versione esatti: un aggiornamento dell'estensione
+  # la rende automaticamente non applicabile e il gate rivaluta il finding.
+  - id: CVE-2026-13149
+    paths:
+      - opt/developer-workspace/code-server-extensions/editorconfig.editorconfig-0.18.2-universal/node_modules/editorconfig/node_modules/brace-expansion/package.json
+    expired_at: 2026-09-10
+    statement: "Dipendenza transitiva della release upstream EditorConfig 0.18.2; nessun aggiornamento supportato disponibile nel repository consumer. Il report completo resta visibile. Wave #16."
+  - id: CVE-2026-14257
+    paths:
+      - opt/developer-workspace/code-server-extensions/editorconfig.editorconfig-0.18.2-universal/node_modules/editorconfig/node_modules/brace-expansion/package.json
+    expired_at: 2026-09-10
+    statement: "Dipendenza transitiva della release upstream EditorConfig 0.18.2; nessun aggiornamento supportato disponibile nel repository consumer. Il report completo resta visibile. Wave #16."
+  - id: CVE-2026-69152
+    paths:
+      - opt/developer-workspace/code-server-extensions/editorconfig.editorconfig-0.18.2-universal/node_modules/editorconfig/node_modules/brace-expansion/package.json
+    expired_at: 2026-09-10
+    statement: "Dipendenza transitiva della release upstream EditorConfig 0.18.2; nessun aggiornamento supportato disponibile nel repository consumer. Il report completo resta visibile. Wave #16."
+
+  # code-server 4.132.0 è la release upstream più recente al 2026-08-10.
+  # Non patchiamo a mano il bundle VS Code/code-server: il report li mantiene
+  # visibili e la scadenza obbliga una nuova verifica upstream.
+  - id: CVE-2026-69192
+    paths:
+      - usr/lib/code-server/lib/vscode/node_modules/ip-address/package.json
+    expired_at: 2026-09-10
+    statement: "Dipendenza inclusa nella release upstream code-server 4.132.0; nessun upgrade supportato disponibile nel repository consumer. Il report completo resta visibile. Wave #16."
+  - id: GHSA-5p4m-2wfm-xmqj
+    paths:
+      - usr/lib/code-server/node_modules/js-yaml/package.json
+    expired_at: 2026-09-10
+    statement: "Dipendenza inclusa nella release upstream code-server 4.132.0; nessun upgrade supportato disponibile nel repository consumer. Il report completo resta visibile. Wave #16."
+  - id: CVE-2026-13697
+    paths:
+      - usr/lib/code-server/lib/vscode/node_modules/undici/package.json
+    expired_at: 2026-09-10
+    statement: "Dipendenza inclusa nella release upstream code-server 4.132.0; nessun upgrade supportato disponibile nel repository consumer. Il report completo resta visibile. Wave #16."
