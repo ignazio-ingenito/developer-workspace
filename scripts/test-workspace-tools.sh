@@ -82,6 +82,17 @@ env "${common_env[@]}" "$script_dir/workspace-tools.sh" bootstrap
 test "$(grep -c '^install' "$mise_log")" = "$first_install_lines"
 test "$(cat "$install_count")" = 1
 
+# A persisted home must re-bootstrap when the baseline mise manifest changes,
+# then cache the new signature so subsequent starts stay fast.
+cat >>"$mise_config" <<'EOF'
+"aqua:argoproj/argo-cd" = "latest"
+EOF
+env "${common_env[@]}" "$script_dir/workspace-tools.sh" bootstrap
+changed_install_lines=$(grep -c '^install' "$mise_log")
+test "$changed_install_lines" -gt "$first_install_lines"
+env "${common_env[@]}" "$script_dir/workspace-tools.sh" bootstrap
+test "$(grep -c '^install' "$mise_log")" = "$changed_install_lines"
+
 env "${common_env[@]}" "$script_dir/workspace-tools.sh" update
 test -x "$install_dir/codex"
 test ! -e "$test_home/.local/bin/codex"
