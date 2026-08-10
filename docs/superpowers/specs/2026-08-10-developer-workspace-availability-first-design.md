@@ -11,43 +11,48 @@ La pipeline deve:
 - rendere visibili tutte le `HIGH` e `CRITICAL`;
 - bloccare `HIGH` e `CRITICAL` solo quando esiste un fix disponibile;
 - pubblicare esattamente l'artifact già verificato;
+- non esporre credenziali di package write a codice eseguito durante la verifica di una PR;
 - non cambiare in questa Wave il riferimento GitOps `:latest`.
 
 ## Scelta tecnica
 
-Usare un singolo job GitHub Actions.
+Usare due job con separazione di privilegi:
 
-Il build esporta l'immagine come tar OCI/Docker locale. Il job carica quel tar nel daemon Docker, esegue i test e due passaggi Trivy sullo stesso artifact, poi — solo su `main` o tag `v*` — retagga e pusha la stessa immagine.
+1. `verify`: build, test e scan con soli permessi `contents: read`;
+2. `publish`: solo su push a `main` o tag `v*`, con `packages: write`.
+
+`verify` esporta l'immagine come `/tmp/developer-workspace.tar`, la carica nel daemon Docker e usa lo stesso artifact per smoke test, Playwright e due passaggi Trivy. Solo sugli eventi di pubblicazione il tar verificato viene conservato per un giorno e trasferito al job `publish`, che lo carica, ricontrolla la revision label e lo pusha senza rebuild.
 
 Flusso:
 
 ```text
+verify (read-only)
 checkout
 → build una volta in /tmp/developer-workspace.tar
 → docker load
-→ smoke test
-→ Playwright Chromium
+→ smoke test con MISE_GITHUB_TOKEN read-only
+→ Playwright Chromium con MISE_GITHUB_TOKEN read-only
 → Trivy report HIGH/CRITICAL completo, non bloccante
 → Trivy gate HIGH/CRITICAL fixable, bloccante
+→ verifica revision label
+→ upload tar solo su push
+
+publish (packages: write, solo push main/tag)
+→ download tar verificato
+→ docker load
 → verifica revision label
 → tag/push dello stesso artifact
 ```
 
 ## Perché questa scelta
 
-È il delta minimo rispetto alla pipeline attuale e rimuove il problema principale: oggi l'immagine testata viene ricostruita prima del publish.
+Il primo run reale del PR ha mostrato che `workspace-tools bootstrap` usa `mise install` e può raggiungere il rate limit anonimo di GitHub. `mise` supporta `MISE_GITHUB_TOKEN`; il job `verify` usa quindi il token GitHub Actions con soli permessi read-only.
 
-Non servono:
+Separare `publish` evita di passare a codice costruito da una PR un token che abbia anche `packages: write`.
 
-- registry temporanei;
-- job aggiuntivi;
-- upload/download artifact tra job;
-- nuovi secret;
-- nuovi runner.
+Non servono registry temporanei, PAT, nuovi secret o nuovi runner.
 
 ## Trivy: reporting e gate
-
-La policy availability-first richiede due comportamenti distinti.
 
 ### Report completo
 
@@ -73,48 +78,43 @@ scanners: vuln
 exit-code: '1'
 ```
 
-Entrambi i passaggi usano la stessa immagine caricata dal tar.
-
-Non vengono introdotte allowlist generiche.
+Entrambi i passaggi usano la stessa immagine caricata dal tar. Non vengono introdotte allowlist generiche.
 
 ## Integrità dell'artifact
 
-Il build applica la label OCI:
+Il build applica:
 
 ```text
 org.opencontainers.image.revision=${GITHUB_SHA}
 ```
 
-Prima del push la pipeline verifica che l'immagine caricata dal tar contenga la stessa revision.
+La label viene verificata sia nel job `verify` sia, prima del push, nel job `publish`.
 
-Questo rende esplicito il contratto:
+Il contratto è:
 
 ```text
-commit sorgente = artifact testato = artifact scansionato = artifact pubblicato
+workflow SHA verificato = artifact testato = artifact scansionato = artifact pubblicato
 ```
+
+Su una pull request `GITHUB_SHA` è il merge commit temporaneo usato da GitHub Actions; su `main` e sui tag è il commit effettivamente pubblicato.
 
 ## Tagging
 
 Il comportamento pubblico resta invariato:
 
-- push su `main`:
-  - `latest`
-  - `sha-${GITHUB_SHA}`
-- push tag `v*`:
-  - `${GITHUB_REF_NAME}`
+- push su `main`: `latest` e `sha-${GITHUB_SHA}`;
+- push tag `v*`: `${GITHUB_REF_NAME}`.
 
-La migrazione del deployment GitOps da `:latest` a tag/digest immutabile è fuori scope per questo PR e verrà valutata separatamente.
+La migrazione del deployment GitOps da `:latest` a tag/digest immutabile resta fuori scope per questo PR.
 
 ## Verifica
 
-La modifica è configurazione CI, non codice applicativo. La verifica richiesta è:
-
-1. validazione sintattica del workflow;
-2. run PR con build, smoke, Playwright, report Trivy e gate Trivy eseguiti;
-3. conferma che non esista un secondo `docker/build-push-action` per il publish;
-4. conferma che il report completo sia non bloccante e il gate fixable sia bloccante;
-5. dopo merge, run naturale su `main` che pubblica i tag previsti dallo stesso artifact verificato;
-6. verifica successiva di replica/scansione Harbor nella Wave #16.
+1. run PR: build, load, smoke, Playwright e i due passaggi Trivy;
+2. su PR il job `publish` deve essere skipped;
+3. una sola `docker/build-push-action` nel workflow;
+4. report unfixed non bloccante e gate fixable bloccante;
+5. dopo merge, run naturale su `main` con trasferimento del tar e publish senza rebuild;
+6. verifica successiva replica/scansione Harbor nella Wave #16.
 
 ## Fuori scope
 
