@@ -33,6 +33,7 @@ All notable changes to this project are documented in this file.
 - Keep unfixed CVEs visible in CI
 - Split Trivy reporting from blocking gate
 - Document least-privilege publish split
+- Align plan with least-privilege verification
 
 
 ### Tests
