@@ -4,13 +4,14 @@
 
 **Goal:** costruire una sola volta l'immagine `developer-workspace`, verificare quell'esatto artifact con smoke test, Playwright e Trivy, quindi pubblicare lo stesso artifact.
 
-**Architecture:** un singolo job GitHub Actions esporta l'immagine in `/tmp/developer-workspace.tar`, la carica in Docker, esegue i gate e infine la retagga/pusha solo sugli eventi di pubblicazione. Trivy blocca `HIGH,CRITICAL` con fix disponibile usando `ignore-unfixed: true`.
+**Architecture:** un singolo job GitHub Actions esporta l'immagine in `/tmp/developer-workspace.tar`, la carica in Docker, esegue i test, un report Trivy completo non bloccante e un gate Trivy sulle sole vulnerabilità fixable; infine retagga/pusha la stessa immagine solo sugli eventi di pubblicazione.
 
 **Tech Stack:** GitHub Actions, Docker Buildx, Docker CLI, Trivy.
 
 ## Global Constraints
 
 - Policy: availability-first approvata in `ignazio-ingenito/homelab#677`.
+- Reporting: `HIGH,CRITICAL`, `ignore-unfixed: false`, `os,library`, `exit-code: 0`.
 - Gate: `HIGH,CRITICAL`, `ignore-unfixed: true`, `os,library`, `exit-code: 1`.
 - Invariante: `build once → verify exact artifact → publish exact artifact`.
 - Preservare smoke test e Playwright Chromium reale.
@@ -28,15 +29,15 @@
 
 **Interfaces:**
 - Consumes: `Dockerfile`, `scripts/smoke-test.sh`, `scripts/test-playwright-runtime.sh` già presenti nell'immagine.
-- Produces: `/tmp/developer-workspace.tar` e immagine locale `developer-workspace:sha-${GITHUB_SHA}` usata da tutti i gate e dal publish.
+- Produces: `/tmp/developer-workspace.tar` e immagine locale `developer-workspace:sha-${GITHUB_SHA}` usata da tutti i test, gli scan e il publish.
 
 - [ ] **Step 1: verificare il contratto precedente**
 
-Confermare nel workflow corrente che esistano due invocazioni di `docker/build-push-action`: una per build/test e una per publish. Questo è il comportamento da eliminare.
+Confermare nel workflow corrente che esistano tre invocazioni potenziali di `docker/build-push-action`: una per build/test, una per publish su `main` e una per publish dei tag. Questo è il comportamento da eliminare.
 
-- [ ] **Step 2: sostituire il primo build con un export dell'artifact esatto**
+- [ ] **Step 2: sostituire il build con un export dell'artifact esatto**
 
-Configurare `docker/build-push-action` con:
+Configurare una sola invocazione di `docker/build-push-action` con:
 
 ```yaml
 platforms: linux/amd64
@@ -63,9 +64,28 @@ Eseguire smoke test e Playwright contro:
 developer-workspace:sha-${GITHUB_SHA}
 ```
 
-- [ ] **Step 4: aggiungere il gate Trivy availability-first**
+- [ ] **Step 4: aggiungere il report Trivy completo non bloccante**
 
 Usare:
+
+```yaml
+uses: aquasecurity/trivy-action@v0.36.0
+with:
+  image-ref: developer-workspace:sha-${{ github.sha }}
+  format: table
+  severity: HIGH,CRITICAL
+  ignore-unfixed: false
+  vuln-type: os,library
+  scanners: vuln
+  version: v0.69.3
+  exit-code: '0'
+```
+
+Questo passaggio mantiene visibili anche le CVE senza fix.
+
+- [ ] **Step 5: aggiungere il gate Trivy fixable bloccante**
+
+Usare una seconda scansione dello stesso artifact:
 
 ```yaml
 uses: aquasecurity/trivy-action@v0.36.0
@@ -80,7 +100,7 @@ with:
   exit-code: '1'
 ```
 
-- [ ] **Step 5: verificare l'identità dell'artifact prima del publish**
+- [ ] **Step 6: verificare l'identità dell'artifact prima del publish**
 
 Controllare la label:
 
@@ -88,7 +108,7 @@ Controllare la label:
 test "$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "developer-workspace:sha-${GITHUB_SHA}")" = "$GITHUB_SHA"
 ```
 
-- [ ] **Step 6: pubblicare senza rebuild**
+- [ ] **Step 7: pubblicare senza rebuild**
 
 Su `main`, retaggare e pushare la stessa immagine come:
 
@@ -103,24 +123,28 @@ Su tag `v*`, retaggare e pushare la stessa immagine come:
 ghcr.io/${repository_owner}/developer-workspace:${GITHUB_REF_NAME}
 ```
 
-Rimuovere entrambe le invocazioni di build dedicate al publish.
+Non deve esistere alcun secondo build dedicato al publish.
 
-- [ ] **Step 7: verifica statica**
+- [ ] **Step 8: verifica statica**
 
 Il workflow finale deve soddisfare contemporaneamente:
 
 ```text
 count(docker/build-push-action) == 1
+count(aquasecurity/trivy-action) == 2
+contains(ignore-unfixed: false)
+contains(exit-code: '0')
 contains(ignore-unfixed: true)
+contains(exit-code: '1')
 contains(severity: HIGH,CRITICAL)
 contains(outputs: type=docker,dest=/tmp/developer-workspace.tar)
 contains(docker load --input /tmp/developer-workspace.tar)
 contains(org.opencontainers.image.revision)
 ```
 
-- [ ] **Step 8: verifica reale tramite PR**
+- [ ] **Step 9: verifica reale tramite PR**
 
-Aprire un PR verso `main` e verificare il run GitHub Actions. Devono risultare verdi:
+Aprire un PR verso `main` e verificare il run GitHub Actions. Devono essere eseguiti:
 
 ```text
 Lint shell scripts
@@ -128,12 +152,14 @@ Build exact image artifact
 Load exact image artifact
 Smoke test
 Playwright Chromium acceptance
-Scan exact image with Trivy
+Report HIGH/CRITICAL vulnerabilities
+Block fixable HIGH/CRITICAL vulnerabilities
+Verify exact image artifact
 ```
 
 Su PR non deve avvenire alcun push a GHCR.
 
-- [ ] **Step 9: commit**
+- [ ] **Step 10: commit**
 
 Commit previsto:
 
