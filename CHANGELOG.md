@@ -32,6 +32,7 @@ All notable changes to this project are documented in this file.
 - Plan availability-first image CI
 - Keep unfixed CVEs visible in CI
 - Split Trivy reporting from blocking gate
+- Document least-privilege publish split
 
 
 ### Tests
