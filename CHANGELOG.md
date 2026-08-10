@@ -44,6 +44,7 @@ All notable changes to this project are documented in this file.
 - Publish latest and immutable sha images (#4)
 - Update checkout action to v5
 - Scan and publish exact workspace image artifact
+- Isolate verification from package publication
 
 
 ### Maintenance
