@@ -33,16 +33,13 @@ All notable changes to this project are documented in this file.
 ### Tests
 
 - **changelog:** Satisfy shellcheck
-- **workspace:** Require browser runtime and iteration CLI baseline
-- **workspace:** Cover manifest bootstrap invalidation
-- **workspace:** Launch real Playwright Chromium
+- **security:** Capture Harbor vulnerability baseline
 
 
 ### CI
 
 - Publish latest and immutable sha images (#4)
 - Update checkout action to v5
-- **workspace:** Exercise real Playwright Chromium
 
 
 ### Maintenance
