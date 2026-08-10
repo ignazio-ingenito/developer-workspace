@@ -33,6 +33,8 @@ jobs:
           cache-to: type=gha,mode=max
       - name: Smoke test
         run: docker run --rm --entrypoint /usr/local/lib/developer-workspace/smoke-test.sh developer-workspace:test
+      - name: Playwright Chromium acceptance
+        run: docker run --rm --entrypoint /usr/local/lib/developer-workspace/test-playwright-runtime.sh developer-workspace:test
       - name: Publish development images
         uses: docker/build-push-action@v6
         if: github.ref == 'refs/heads/main'
