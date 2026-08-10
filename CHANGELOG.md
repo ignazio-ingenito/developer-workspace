@@ -38,6 +38,7 @@ All notable changes to this project are documented in this file.
 - **changelog:** Satisfy shellcheck
 - **security:** Capture Harbor vulnerability baseline
 - **security:** Compare minimal vulnerability remediations
+- **security:** Compare code-server 4.131 candidate
 
 
 ### CI
