@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-ARG CODE_SERVER_VERSION=4.127.0
+ARG CODE_SERVER_VERSION=4.132.0
 
 FROM codercom/code-server:${CODE_SERVER_VERSION}
 
