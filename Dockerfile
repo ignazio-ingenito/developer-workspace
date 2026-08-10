@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-ARG CODE_SERVER_VERSION=4.127.0
+ARG CODE_SERVER_VERSION=4.130.0
 
 FROM codercom/code-server:${CODE_SERVER_VERSION}
 
@@ -14,7 +14,9 @@ SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
 # developer CLIs are installed by mise in the persistent, writable home.
 # Chromium itself remains project-managed; the image provides only the Debian
 # runtime and fonts required to execute Playwright's downloaded browser.
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update \
+ && apt-get upgrade -y \
+ && apt-get install -y --no-install-recommends \
     bash-completion ca-certificates curl dnsutils git gnupg less make openssh-client \
     sudo tmux unzip util-linux wget xz-utils \
     fonts-liberation fonts-noto-color-emoji fonts-unifont libfontconfig1 libfreetype6 \
