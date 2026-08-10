@@ -9,7 +9,8 @@ fi
 
 jq -e '.Results | type == "array"' "$report" >/dev/null
 
-jq_filter='[
+jq_filter="$({ cat <<'JQ'
+[
   .Results[]? as $result
   | ($result.Vulnerabilities // [])[]
   | select(.Severity == "HIGH" or .Severity == "CRITICAL")
@@ -22,7 +23,9 @@ jq_filter='[
       installed: .InstalledVersion,
       fixed: (if ((.FixedVersion // "") | length) > 0 then .FixedVersion else "-" end)
     }
-]'
+]
+JQ
+} )"
 
 printf 'STATUS\tSEVERITY\tCVE\tTARGET\tPACKAGE\tINSTALLED\tFIXED\n'
 jq -r "${jq_filter} | sort_by(.status, .severity, .id)[] | [.status, .severity, .id, .target, .package, .installed, .fixed] | @tsv" "$report"
