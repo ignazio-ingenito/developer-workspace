@@ -14,6 +14,7 @@ All notable changes to this project are documented in this file.
 - **tools:** Manage writable workspace tool lifecycle (#7)
 - **image:** Add DNS utilities (#8)
 - **changelog:** Centralize automation
+- **workspace:** Add browser runtime and iteration CLI baseline
 
 
 ### Bug fixes
