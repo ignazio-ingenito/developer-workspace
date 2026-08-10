@@ -50,6 +50,7 @@ All notable changes to this project are documented in this file.
 - Isolate verification from package publication
 - Classify fixable Trivy findings deterministically
 - Make Trivy availability gate deterministic
+- Make Trivy jq filter shellcheck-safe
 
 
 ### Maintenance
