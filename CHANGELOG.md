@@ -19,7 +19,7 @@ All notable changes to this project are documented in this file.
 ### Bug fixes
 
 - **changelog:** Skip Dependabot pull requests (#11)
-- **changelog:** Checkout pull request head SHA
+- **ci:** Guard changelog checkout against missing head branch
 
 
 ### Documentation
@@ -32,6 +32,7 @@ All notable changes to this project are documented in this file.
 ### Tests
 
 - **changelog:** Satisfy shellcheck
+- **workspace:** Require browser runtime and iteration CLI baseline
 
 
 ### CI
