@@ -18,8 +18,8 @@ codex_attempt_stamp="$state_dir/codex-update-attempt"
 codex_lock="$state_dir/codex-update.lock"
 
 home_tools=(
-  mise node npm npx python3 uv gh chezmoi bw sops age kubectl helm kustomize tofu
-  ansible jq yq rg fd shellcheck
+  mise node npm npx python3 uv gh chezmoi bw sops age kubectl helm kustomize argocd tofu
+  ansible jq yq actionlint trivy rg fd shellcheck
 )
 image_tools=(
   code-server git tmux curl gpg less make sudo unzip wget ssh bash
@@ -194,10 +194,13 @@ tool_version() {
     kubectl) first_line kubectl version --client=true ;;
     helm) first_line helm version --short ;;
     kustomize) first_line kustomize version ;;
+    argocd) first_line argocd version --client ;;
     tofu) first_line tofu version ;;
     ansible) first_line ansible --version ;;
     jq) first_line jq --version ;;
     yq) first_line yq --version ;;
+    actionlint) first_line actionlint --version ;;
+    trivy) first_line trivy --version ;;
     rg) first_line rg --version ;;
     fd) first_line fd --version ;;
     curl) first_line curl --version ;;

@@ -10,7 +10,7 @@ pass() { printf 'ok: %s\n' "$1"; }
 warn() { printf 'warning: %s\n' "$1" >&2; warnings=$((warnings + 1)); }
 fail() { printf 'error: %s\n' "$1" >&2; failures=$((failures + 1)); }
 
-for binary in bash git gh tmux mise chezmoi codex workspace-tools bw sops age kubectl helm kustomize tofu ansible jq yq rg fd shellcheck node npm python3 uv ssh ssh-agent code-server; do
+for binary in bash git gh tmux mise chezmoi codex workspace-tools bw sops age kubectl helm kustomize argocd tofu ansible jq yq actionlint trivy rg fd shellcheck node npm python3 uv ssh ssh-agent code-server; do
   if command -v "$binary" >/dev/null 2>&1; then
     pass "$binary is available"
   else
@@ -24,12 +24,31 @@ else
   fail "mise active binary is missing from ~/.local/bin; run workspace-tools update"
 fi
 
-for binary in gh chezmoi bw sops age kubectl helm kustomize tofu ansible jq yq rg fd shellcheck node npm python3 uv; do
+for binary in gh chezmoi bw sops age kubectl helm kustomize argocd tofu ansible jq yq actionlint trivy rg fd shellcheck node npm python3 uv; do
   binary_path=$(command -v "$binary" 2>/dev/null || true)
   case $binary_path in
     "$HOME"/*) pass "$binary is active from persistent home" ;;
     *) fail "$binary must be active from persistent home; run workspace-tools update and open a new shell" ;;
   esac
+done
+
+browser_runtime_libs=(
+  libglib-2.0.so.0
+  libgobject-2.0.so.0
+  libnss3.so
+  libatk-1.0.so.0
+  libdbus-1.so.3
+  libgbm.so.1
+  libxkbcommon.so.0
+  libasound.so.2
+  libX11.so.6
+)
+for library in "${browser_runtime_libs[@]}"; do
+  if ldconfig -p 2>/dev/null | grep -Fq "$library"; then
+    pass "$library browser runtime library is available"
+  else
+    fail "$library browser runtime library is missing; rebuild the workspace image"
+  fi
 done
 
 if [[ $(command -v codex 2>/dev/null) == /usr/local/bin/codex ]]; then

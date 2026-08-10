@@ -21,7 +21,7 @@ browser_runtime_libs=(
   libX11.so.6
 )
 for library in "${browser_runtime_libs[@]}"; do
-  ldconfig -p | grep -Fq "$library" || {
+  ldconfig -p | grep -F "$library" >/dev/null || {
     echo "missing browser runtime library: $library" >&2
     exit 1
   }
@@ -56,7 +56,7 @@ kustomize version
 tofu version
 argocd version --client
 trivy --version
-actionlint -version
+actionlint --version
 chezmoi --version
 
 /usr/local/lib/developer-workspace/test-shell-bootstrap.sh
