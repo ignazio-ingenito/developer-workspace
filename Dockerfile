@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-ARG CODE_SERVER_VERSION=4.127.0
+ARG CODE_SERVER_VERSION=4.132.0
 
 FROM codercom/code-server:${CODE_SERVER_VERSION}
 
@@ -9,6 +9,12 @@ ARG MISE_VERSION=2026.7.3
 ARG OH_MY_BASH_REF=627913b75855036cb5af2f3ad130c66a335e7382
 
 SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
+
+# The upstream image uses fixuid from its own entrypoint. This image replaces
+# that entrypoint and always runs as UID 1000, so the inherited setuid binary
+# is unused and is removed instead of carrying its vulnerable Go runtime.
+RUN rm -f /usr/local/bin/fixuid \
+ && rm -rf /etc/fixuid
 
 # Keep only the operating-system bootstrap in the immutable image. Fast-moving
 # developer CLIs are installed by mise in the persistent, writable home.

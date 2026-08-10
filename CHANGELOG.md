@@ -21,6 +21,8 @@ All notable changes to this project are documented in this file.
 
 - **changelog:** Skip Dependabot pull requests (#11)
 - **ci:** Guard changelog checkout against missing head branch
+- **workspace:** Update code-server base to 4.132.0
+- **ci:** Align standard image checks
 
 
 ### Documentation
@@ -28,21 +30,32 @@ All notable changes to this project are documented in this file.
 - **readme:** Add parallel repository workflow (#6)
 - Document personal ssh agent setup
 - **changelog:** Document public caller access
+- Define availability-first image CI design
+- Plan availability-first image CI
+- Keep unfixed CVEs visible in CI
+- Split Trivy reporting from blocking gate
+- Document least-privilege publish split
+- Align plan with least-privilege verification
 
 
 ### Tests
 
 - **changelog:** Satisfy shellcheck
-- **workspace:** Require browser runtime and iteration CLI baseline
-- **workspace:** Cover manifest bootstrap invalidation
-- **workspace:** Launch real Playwright Chromium
+- Define availability-first Trivy policy contract
 
 
 ### CI
 
 - Publish latest and immutable sha images (#4)
 - Update checkout action to v5
-- **workspace:** Exercise real Playwright Chromium
+- Scan and publish exact workspace image artifact
+- Isolate verification from package publication
+- Classify fixable Trivy findings deterministically
+- Make Trivy availability gate deterministic
+- Make Trivy jq filter shellcheck-safe
+- Use standard Docker metadata and Trivy gates
+- Remove custom Trivy policy parser
+- Remove custom Trivy policy test
 
 
 ### Maintenance
@@ -51,3 +64,5 @@ All notable changes to this project are documented in this file.
 - Merge pull request #10 from ignazio-ingenito/agent/centralize-changelog
 
 feat(changelog): centralize git-cliff automation
+- Remove unused inherited fixuid
+- Document temporary upstream CVE exceptions
