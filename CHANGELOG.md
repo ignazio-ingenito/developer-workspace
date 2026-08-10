@@ -65,3 +65,4 @@ All notable changes to this project are documented in this file.
 
 feat(changelog): centralize git-cliff automation
 - Remove unused inherited fixuid
+- Document temporary upstream CVE exceptions
