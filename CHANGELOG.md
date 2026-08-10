@@ -48,6 +48,7 @@ All notable changes to this project are documented in this file.
 - Update checkout action to v5
 - Scan and publish exact workspace image artifact
 - Isolate verification from package publication
+- Classify fixable Trivy findings deterministically
 
 
 ### Maintenance
