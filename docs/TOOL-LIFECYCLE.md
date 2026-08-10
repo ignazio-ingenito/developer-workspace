@@ -26,14 +26,22 @@ previous command path.
 
 | Owner | Tools | Location | Update |
 | --- | --- | --- | --- |
-| Persistent home | mise, Node, Python, uv, GitHub CLI, chezmoi, Bitwarden CLI, SOPS, age, kubectl, Helm, kustomize, OpenTofu, Ansible, jq, yq, ripgrep, fd, ShellCheck | `~/.local` and `~/.local/share/mise` | `workspace-tools update` |
+| Persistent home | mise, Node, Python 3, uv, GitHub CLI, chezmoi, Bitwarden CLI, SOPS, age, kubectl, Helm, kustomize, Argo CD, OpenTofu, Ansible, jq, yq, actionlint, Trivy, ripgrep, fd, ShellCheck | `~/.local` and `~/.local/share/mise` | `workspace-tools update` |
 | Persistent home | Codex | `~/.local/libexec/codex` | Automatically before a new Codex session, or `workspace-tools update` |
-| Image bootstrap | code-server, Bash, Git, SSH, tmux, curl, GnuPG and recovery utilities | `/usr` and `/usr/local` | Image rebuild and rollout |
+| Image bootstrap | code-server, Bash, Git, SSH, tmux, curl, GnuPG, Chromium/Playwright runtime libraries and recovery utilities | `/usr` and `/usr/local` | Image rebuild and rollout |
 | Project | Versions required by one repository | The repository's `mise.toml` | Change and commit `mise.toml` |
 
 The image contains a small recovery copy of `mise`. On first use it is copied
 to `~/.local/bin/mise`; that writable copy is the active binary and can update
 itself.
+
+The workspace Python default is constrained to major version `3`, so
+`workspace-tools update` may advance both patch and minor releases while a
+future major-version change remains explicit.
+
+Chromium itself is not bundled in the image. Repositories such as those using
+Playwright keep ownership of their browser version and cache; the immutable
+image supplies the Debian runtime libraries and fonts that require root access.
 
 ## First start after deploying the image
 

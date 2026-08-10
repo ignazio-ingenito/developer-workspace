@@ -14,12 +14,13 @@ All notable changes to this project are documented in this file.
 - **tools:** Manage writable workspace tool lifecycle (#7)
 - **image:** Add DNS utilities (#8)
 - **changelog:** Centralize automation
+- **workspace:** Add browser runtime and iteration CLI baseline
 
 
 ### Bug fixes
 
 - **changelog:** Skip Dependabot pull requests (#11)
-- **changelog:** Checkout pull request head SHA
+- **ci:** Guard changelog checkout against missing head branch
 
 
 ### Documentation
@@ -32,12 +33,16 @@ All notable changes to this project are documented in this file.
 ### Tests
 
 - **changelog:** Satisfy shellcheck
+- **workspace:** Require browser runtime and iteration CLI baseline
+- **workspace:** Cover manifest bootstrap invalidation
+- **workspace:** Launch real Playwright Chromium
 
 
 ### CI
 
 - Publish latest and immutable sha images (#4)
 - Update checkout action to v5
+- **workspace:** Exercise real Playwright Chromium
 
 
 ### Maintenance
