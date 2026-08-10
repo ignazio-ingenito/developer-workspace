@@ -1,6 +1,17 @@
 # syntax=docker/dockerfile:1.7
 ARG CODE_SERVER_VERSION=4.131.0
 
+# Keep security-only npm updates isolated from the runtime image. These exact
+# package versions are copied over the vulnerable copies bundled upstream.
+FROM node:22-bookworm-slim AS npm-security-patches
+RUN mkdir -p /patch/code-server /patch/vscode /patch/editorconfig \
+ && npm install --prefix /patch/code-server --no-save --no-package-lock --ignore-scripts --omit=dev --fund=false --audit=false \
+      ip-address@10.3.1 js-yaml@4.3.1 \
+ && npm install --prefix /patch/vscode --no-save --no-package-lock --ignore-scripts --omit=dev --fund=false --audit=false \
+      ip-address@10.3.1 undici@7.29.0 \
+ && npm install --prefix /patch/editorconfig --no-save --no-package-lock --ignore-scripts --omit=dev --fund=false --audit=false \
+      brace-expansion@5.0.9
+
 FROM codercom/code-server:${CODE_SERVER_VERSION}
 
 USER root
@@ -28,6 +39,17 @@ RUN apt-get update \
  && rm -f /usr/local/bin/fixuid \
  && rm -rf /etc/fixuid /var/lib/apt/lists/*
 
+COPY --from=npm-security-patches /patch /opt/npm-security-patches
+RUN rm -rf \
+      /usr/lib/code-server/node_modules/ip-address \
+      /usr/lib/code-server/node_modules/js-yaml \
+      /usr/lib/code-server/lib/vscode/node_modules/ip-address \
+      /usr/lib/code-server/lib/vscode/node_modules/undici \
+ && cp -a /opt/npm-security-patches/code-server/node_modules/ip-address /usr/lib/code-server/node_modules/ \
+ && cp -a /opt/npm-security-patches/code-server/node_modules/js-yaml /usr/lib/code-server/node_modules/ \
+ && cp -a /opt/npm-security-patches/vscode/node_modules/ip-address /usr/lib/code-server/lib/vscode/node_modules/ \
+ && cp -a /opt/npm-security-patches/vscode/node_modules/undici /usr/lib/code-server/lib/vscode/node_modules/
+
 COPY scripts/download-verified.sh /usr/local/bin/download-verified
 RUN chmod 0755 /usr/local/bin/download-verified
 
@@ -54,6 +76,16 @@ COPY extensions/baseline.txt /opt/developer-workspace/extensions.txt
 
 RUN CODE_SERVER_EXTENSIONS_DIR=/opt/developer-workspace/code-server-extensions \
       /usr/local/lib/developer-workspace/install-extensions.sh \
+ && editorconfig_dir="$(find /opt/developer-workspace/code-server-extensions -maxdepth 1 -type d -name 'editorconfig.editorconfig-*' -print -quit)" \
+ && test -n "$editorconfig_dir" \
+ && rm -rf \
+      "$editorconfig_dir/node_modules/editorconfig/node_modules/brace-expansion" \
+      "$editorconfig_dir/node_modules/editorconfig/node_modules/balanced-match" \
+ && cp -a /opt/npm-security-patches/editorconfig/node_modules/brace-expansion \
+      "$editorconfig_dir/node_modules/editorconfig/node_modules/" \
+ && cp -a /opt/npm-security-patches/editorconfig/node_modules/balanced-match \
+      "$editorconfig_dir/node_modules/editorconfig/node_modules/" \
+ && rm -rf /opt/npm-security-patches \
  && chmod -R a+rX /usr/local/lib/developer-workspace /opt/developer-workspace /opt/oh-my-bash \
  && chmod 0755 /usr/local/lib/developer-workspace/*.sh \
  && ln -s /usr/local/lib/developer-workspace/workspace-doctor.sh /usr/local/bin/workspace-doctor \
