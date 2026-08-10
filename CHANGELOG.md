@@ -42,6 +42,7 @@ All notable changes to this project are documented in this file.
 
 - Publish latest and immutable sha images (#4)
 - Update checkout action to v5
+- **workspace:** Exercise real Playwright Chromium
 
 
 ### Maintenance
