@@ -60,3 +60,4 @@ All notable changes to this project are documented in this file.
 - Merge pull request #10 from ignazio-ingenito/agent/centralize-changelog
 
 feat(changelog): centralize git-cliff automation
+- Remove unused inherited fixuid
