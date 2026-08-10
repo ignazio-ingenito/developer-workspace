@@ -28,21 +28,22 @@ All notable changes to this project are documented in this file.
 - **readme:** Add parallel repository workflow (#6)
 - Document personal ssh agent setup
 - **changelog:** Document public caller access
+- Define availability-first image CI design
+- Plan availability-first image CI
+- Keep unfixed CVEs visible in CI
+- Split Trivy reporting from blocking gate
 
 
 ### Tests
 
 - **changelog:** Satisfy shellcheck
-- **workspace:** Require browser runtime and iteration CLI baseline
-- **workspace:** Cover manifest bootstrap invalidation
-- **workspace:** Launch real Playwright Chromium
 
 
 ### CI
 
 - Publish latest and immutable sha images (#4)
 - Update checkout action to v5
-- **workspace:** Exercise real Playwright Chromium
+- Scan and publish exact workspace image artifact
 
 
 ### Maintenance
