@@ -39,6 +39,7 @@ All notable changes to this project are documented in this file.
 ### Tests
 
 - **changelog:** Satisfy shellcheck
+- Define availability-first Trivy policy contract
 
 
 ### CI
