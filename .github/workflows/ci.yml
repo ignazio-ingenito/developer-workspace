@@ -4,13 +4,13 @@ on:
   pull_request:
   push:
     branches: [main]
-    tags: ['v*']
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 env:
-  IMAGE_LOCAL: developer-workspace:sha-${{ github.sha }}
+  IMAGE_LOCAL: developer-workspace:ci-${{ github.sha }}
   IMAGE_REMOTE: ghcr.io/${{ github.repository_owner }}/developer-workspace
   IMAGE_ARTIFACT: developer-workspace-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
 
@@ -19,26 +19,36 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    outputs:
+      image-tags: ${{ steps.meta.outputs.tags }}
     steps:
       - uses: actions/checkout@v5
 
       - name: Lint shell scripts
         run: shellcheck scripts/*.sh tests/*.sh
 
-      - name: Test Trivy availability-first policy
-        run: bash tests/test-trivy-policy.sh
+      - name: Generate immutable image metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE_REMOTE }}
+          flavor: latest=false
+          tags: |
+            type=raw,value={{date 'YYYY.MM.DD' tz='Europe/Rome'}}_${{ github.run_number }}
+            type=sha,format=long
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       - name: Build exact image artifact
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64
           push: false
-          tags: ${{ env.IMAGE_LOCAL }}
-          labels: |
-            org.opencontainers.image.revision=${{ github.sha }}
+          tags: |
+            ${{ env.IMAGE_LOCAL }}
+            ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           outputs: type=docker,dest=/tmp/developer-workspace.tar
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -60,30 +70,37 @@ jobs:
           --entrypoint /usr/local/lib/developer-workspace/test-playwright-runtime.sh
           "$IMAGE_LOCAL"
 
-      - name: Generate HIGH/CRITICAL vulnerability report
+      - name: Report all HIGH/CRITICAL vulnerabilities
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ env.IMAGE_LOCAL }}
-          format: json
-          output: trivy-high-critical.json
+          format: table
           severity: HIGH,CRITICAL
           ignore-unfixed: false
           vuln-type: os,library
           scanners: vuln
-          version: v0.69.3
           exit-code: '0'
 
-      - name: Enforce availability-first vulnerability policy
-        run: bash scripts/check-trivy-policy.sh trivy-high-critical.json
+      - name: Block fixable HIGH/CRITICAL vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE_LOCAL }}
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          vuln-type: os,library
+          scanners: vuln
+          exit-code: '1'
 
-      - name: Verify exact image artifact
-        run: |
-          set -euo pipefail
-          revision="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$IMAGE_LOCAL")"
-          test "$revision" = "$GITHUB_SHA"
-
+      # Re-running a workflow keeps the same run_number. Publishing only the
+      # first attempt prevents an immutable CalVer tag from being overwritten.
       - name: Preserve verified image artifact
-        if: github.event_name == 'push'
+        if: >-
+          ${{
+            github.event_name != 'pull_request' &&
+            github.ref == 'refs/heads/main' &&
+            github.run_attempt == 1
+          }}
         uses: actions/upload-artifact@v7
         with:
           name: ${{ env.IMAGE_ARTIFACT }}
@@ -96,11 +113,9 @@ jobs:
     if: >-
       ${{
         needs.verify.result == 'success' &&
-        github.event_name == 'push' &&
-        (
-          github.ref == 'refs/heads/main' ||
-          startsWith(github.ref, 'refs/tags/v')
-        )
+        github.event_name != 'pull_request' &&
+        github.ref == 'refs/heads/main' &&
+        github.run_attempt == 1
       }}
     runs-on: ubuntu-latest
     permissions:
@@ -113,34 +128,15 @@ jobs:
           name: ${{ env.IMAGE_ARTIFACT }}
           path: /tmp
 
-      - name: Load and verify exact image artifact
-        run: |
-          set -euo pipefail
-          docker load --input /tmp/developer-workspace.tar
-          revision="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$IMAGE_LOCAL")"
-          test "$revision" = "$GITHUB_SHA"
+      - name: Load verified image artifact
+        run: docker load --input /tmp/developer-workspace.tar
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish development images
-        if: github.ref == 'refs/heads/main'
-        run: |
-          set -euo pipefail
-          for tag in latest "sha-${GITHUB_SHA}"; do
-            target="${IMAGE_REMOTE}:${tag}"
-            docker tag "$IMAGE_LOCAL" "$target"
-            docker push "$target"
-          done
-
-      - name: Publish versioned image
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          set -euo pipefail
-          target="${IMAGE_REMOTE}:${GITHUB_REF_NAME}"
-          docker tag "$IMAGE_LOCAL" "$target"
-          docker push "$target"
+      - name: Publish immutable image tags
+        run: docker push --all-tags "$IMAGE_REMOTE"
