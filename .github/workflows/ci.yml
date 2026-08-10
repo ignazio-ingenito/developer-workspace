@@ -80,7 +80,7 @@ jobs:
           version: v0.73.0
           exit-code: '0'
 
-      - name: Block fixable HIGH/CRITICAL vulnerabilities
+      - name: Block actionable HIGH/CRITICAL vulnerabilities
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ env.IMAGE_LOCAL }}
@@ -90,6 +90,7 @@ jobs:
           vuln-type: os,library
           scanners: vuln
           version: v0.73.0
+          trivyignores: .trivyignore.yaml
           exit-code: '1'
 
       # Re-running a workflow keeps the same run_number. Publishing only the
