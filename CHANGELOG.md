@@ -23,6 +23,7 @@ All notable changes to this project are documented in this file.
 - **ci:** Guard changelog checkout against missing head branch
 - **security:** Authenticate diagnostic GHCR scan
 - **security:** Preserve and summarize vulnerability evidence
+- **security:** Update base and Debian packages
 
 
 ### Documentation
