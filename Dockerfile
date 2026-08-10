@@ -28,7 +28,7 @@ SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
 RUN apt-get update \
  && apt-get upgrade -y \
  && apt-get install -y --no-install-recommends \
-    bash-completion ca-certificates curl dnsutils git gnupg less make openssh-client \
+    bash-completion ca-certificates curl git gnupg less make openssh-client \
     sudo tmux unzip util-linux wget xz-utils \
     fonts-liberation fonts-noto-color-emoji fonts-unifont libfontconfig1 libfreetype6 \
     libasound2t64 libatk-bridge2.0-0t64 libatk1.0-0t64 libatspi2.0-0t64 \
