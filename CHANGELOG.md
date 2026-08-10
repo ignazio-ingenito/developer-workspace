@@ -24,6 +24,7 @@ All notable changes to this project are documented in this file.
 - **security:** Authenticate diagnostic GHCR scan
 - **security:** Preserve and summarize vulnerability evidence
 - **security:** Update base and Debian packages
+- **security:** Adopt code-server 4.131 and prune unused base tools
 
 
 ### Documentation
