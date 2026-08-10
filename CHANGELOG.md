@@ -35,6 +35,7 @@ All notable changes to this project are documented in this file.
 - **changelog:** Satisfy shellcheck
 - **workspace:** Require browser runtime and iteration CLI baseline
 - **workspace:** Cover manifest bootstrap invalidation
+- **workspace:** Launch real Playwright Chromium
 
 
 ### CI
