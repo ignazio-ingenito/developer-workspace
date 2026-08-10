@@ -26,6 +26,7 @@ All notable changes to this project are documented in this file.
 - **security:** Update base and Debian packages
 - **security:** Adopt code-server 4.131 and prune unused base tools
 - **security:** Patch remaining fixable Node dependencies
+- **security:** Remove unused DNS client packages
 
 
 ### Documentation
