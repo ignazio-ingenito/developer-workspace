@@ -8,6 +8,7 @@ La pipeline deve:
 
 - costruire l'immagine una sola volta;
 - eseguire smoke test, Playwright e Trivy sullo stesso artifact;
+- rendere visibili tutte le `HIGH` e `CRITICAL`;
 - bloccare `HIGH` e `CRITICAL` solo quando esiste un fix disponibile;
 - pubblicare esattamente l'artifact già verificato;
 - non cambiare in questa Wave il riferimento GitOps `:latest`.
@@ -16,7 +17,7 @@ La pipeline deve:
 
 Usare un singolo job GitHub Actions.
 
-Il build esporta l'immagine come tar OCI/Docker locale. Il job carica quel tar nel daemon Docker, esegue i test e lo scan Trivy, poi — solo su `main` o tag `v*` — retagga e pusha la stessa immagine.
+Il build esporta l'immagine come tar OCI/Docker locale. Il job carica quel tar nel daemon Docker, esegue i test e due passaggi Trivy sullo stesso artifact, poi — solo su `main` o tag `v*` — retagga e pusha la stessa immagine.
 
 Flusso:
 
@@ -26,7 +27,8 @@ checkout
 → docker load
 → smoke test
 → Playwright Chromium
-→ Trivy HIGH/CRITICAL, ignore-unfixed=true
+→ Trivy report HIGH/CRITICAL completo, non bloccante
+→ Trivy gate HIGH/CRITICAL fixable, bloccante
 → verifica revision label
 → tag/push dello stesso artifact
 ```
@@ -43,9 +45,25 @@ Non servono:
 - nuovi secret;
 - nuovi runner.
 
-## Gate Trivy
+## Trivy: reporting e gate
 
-Configurazione target:
+La policy availability-first richiede due comportamenti distinti.
+
+### Report completo
+
+Mostra anche le vulnerabilità senza fix ma non blocca:
+
+```yaml
+severity: HIGH,CRITICAL
+ignore-unfixed: false
+vuln-type: os,library
+scanners: vuln
+exit-code: '0'
+```
+
+### Gate fixable
+
+Blocca solo le vulnerabilità correggibili:
 
 ```yaml
 severity: HIGH,CRITICAL
@@ -55,7 +73,7 @@ scanners: vuln
 exit-code: '1'
 ```
 
-Le vulnerabilità senza fix restano nel reporting dello scanner ma non bloccano la delivery.
+Entrambi i passaggi usano la stessa immagine caricata dal tar.
 
 Non vengono introdotte allowlist generiche.
 
@@ -92,10 +110,11 @@ La migrazione del deployment GitOps da `:latest` a tag/digest immutabile è fuor
 La modifica è configurazione CI, non codice applicativo. La verifica richiesta è:
 
 1. validazione sintattica del workflow;
-2. run PR con build, smoke, Playwright e Trivy verdi;
+2. run PR con build, smoke, Playwright, report Trivy e gate Trivy eseguiti;
 3. conferma che non esista un secondo `docker/build-push-action` per il publish;
-4. dopo merge, run naturale su `main` che pubblica i tag previsti dallo stesso artifact verificato;
-5. verifica successiva di replica/scansione Harbor nella Wave #16.
+4. conferma che il report completo sia non bloccante e il gate fixable sia bloccante;
+5. dopo merge, run naturale su `main` che pubblica i tag previsti dallo stesso artifact verificato;
+6. verifica successiva di replica/scansione Harbor nella Wave #16.
 
 ## Fuori scope
 
