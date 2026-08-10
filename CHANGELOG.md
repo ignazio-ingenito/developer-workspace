@@ -52,6 +52,9 @@ All notable changes to this project are documented in this file.
 - Classify fixable Trivy findings deterministically
 - Make Trivy availability gate deterministic
 - Make Trivy jq filter shellcheck-safe
+- Use standard Docker metadata and Trivy gates
+- Remove custom Trivy policy parser
+- Remove custom Trivy policy test
 
 
 ### Maintenance
