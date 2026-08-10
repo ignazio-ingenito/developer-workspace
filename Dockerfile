@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-ARG CODE_SERVER_VERSION=4.130.0
+ARG CODE_SERVER_VERSION=4.131.0
 
 FROM codercom/code-server:${CODE_SERVER_VERSION}
 
@@ -24,7 +24,9 @@ RUN apt-get update \
     libcairo2 libcups2t64 libdbus-1-3 libdrm2 libgbm1 libglib2.0-0t64 \
     libnspr4 libnss3 libpango-1.0-0 libx11-6 libxcb1 libxcomposite1 \
     libxdamage1 libxext6 libxfixes3 libxkbcommon0 libxrandr2 \
- && rm -rf /var/lib/apt/lists/*
+ && apt-get purge -y vim-tiny vim-common xxd \
+ && rm -f /usr/local/bin/fixuid \
+ && rm -rf /etc/fixuid /var/lib/apt/lists/*
 
 COPY scripts/download-verified.sh /usr/local/bin/download-verified
 RUN chmod 0755 /usr/local/bin/download-verified
