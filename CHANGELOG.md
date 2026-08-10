@@ -27,6 +27,7 @@ All notable changes to this project are documented in this file.
 - **security:** Adopt code-server 4.131 and prune unused base tools
 - **security:** Patch remaining fixable Node dependencies
 - **security:** Remove unused DNS client packages
+- **security:** Retain required DNS diagnostics
 
 
 ### Documentation
