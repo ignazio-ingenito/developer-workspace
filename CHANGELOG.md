@@ -49,6 +49,7 @@ All notable changes to this project are documented in this file.
 - Scan and publish exact workspace image artifact
 - Isolate verification from package publication
 - Classify fixable Trivy findings deterministically
+- Make Trivy availability gate deterministic
 
 
 ### Maintenance
