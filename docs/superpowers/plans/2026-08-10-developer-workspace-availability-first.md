@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** costruire una sola volta l'immagine `developer-workspace`, verificare quell'esatto artifact con smoke test, Playwright e Trivy, quindi pubblicare lo stesso artifact.
+**Goal:** costruire una sola volta l'immagine `developer-workspace`, verificare quell'esatto artifact con smoke test, Playwright e Trivy, quindi pubblicare lo stesso artifact senza esporre permessi package-write alla fase di verifica.
 
-**Architecture:** un singolo job GitHub Actions esporta l'immagine in `/tmp/developer-workspace.tar`, la carica in Docker, esegue i test, un report Trivy completo non bloccante e un gate Trivy sulle sole vulnerabilità fixable; infine retagga/pusha la stessa immagine solo sugli eventi di pubblicazione.
+**Architecture:** il job `verify` ha soli permessi read-only, produce `/tmp/developer-workspace.tar`, testa e scansiona l'immagine e conserva il tar solo sugli eventi di push. Il job `publish`, eseguito solo dopo `verify` verde su `main` o tag `v*`, scarica il tar verificato e lo pubblica con `packages: write` senza rebuild.
 
-**Tech Stack:** GitHub Actions, Docker Buildx, Docker CLI, Trivy.
+**Tech Stack:** GitHub Actions, Docker Buildx, Docker CLI, Trivy, mise.
 
 ## Global Constraints
 
@@ -14,6 +14,9 @@
 - Reporting: `HIGH,CRITICAL`, `ignore-unfixed: false`, `os,library`, `exit-code: 0`.
 - Gate: `HIGH,CRITICAL`, `ignore-unfixed: true`, `os,library`, `exit-code: 1`.
 - Invariante: `build once → verify exact artifact → publish exact artifact`.
+- `verify`: `contents: read`, nessun `packages: write`.
+- `publish`: `packages: write` solo su push `main`/tag.
+- Passare `MISE_GITHUB_TOKEN` read-only ai container di smoke/Playwright per evitare rate limit anonimi.
 - Preservare smoke test e Playwright Chromium reale.
 - Preservare i tag `latest`, `sha-${GITHUB_SHA}` e `v*` già esposti.
 - Non modificare il deployment GitOps `:latest` in questo PR.
@@ -22,129 +25,50 @@
 
 ---
 
-### Task 1: rendere la pipeline single-build e availability-first
+### Task 1: pipeline exact-artifact e gate availability-first
 
 **Files:**
 - Modify: `.github/workflows/ci.yml`
 
 **Interfaces:**
-- Consumes: `Dockerfile`, `scripts/smoke-test.sh`, `scripts/test-playwright-runtime.sh` già presenti nell'immagine.
-- Produces: `/tmp/developer-workspace.tar` e immagine locale `developer-workspace:sha-${GITHUB_SHA}` usata da tutti i test, gli scan e il publish.
+- Consumes: `Dockerfile`, `scripts/smoke-test.sh`, `scripts/test-playwright-runtime.sh`.
+- Produces: `/tmp/developer-workspace.tar` e immagine locale `developer-workspace:sha-${GITHUB_SHA}`.
 
-- [ ] **Step 1: verificare il contratto precedente**
+- [x] **Step 1: verificare il contratto precedente**
 
-Confermare nel workflow corrente che esistano tre invocazioni potenziali di `docker/build-push-action`: una per build/test, una per publish su `main` e una per publish dei tag. Questo è il comportamento da eliminare.
+Baseline: tre invocazioni potenziali di `docker/build-push-action` (build/test, publish main, publish tag).
 
-- [ ] **Step 2: sostituire il build con un export dell'artifact esatto**
+- [x] **Step 2: build singolo con export dell'artifact**
 
-Configurare una sola invocazione di `docker/build-push-action` con:
+Un solo `docker/build-push-action`, con tag locale, revision label e `outputs: type=docker,dest=/tmp/developer-workspace.tar`.
 
-```yaml
-platforms: linux/amd64
-push: false
-tags: developer-workspace:sha-${{ github.sha }}
-labels: |
-  org.opencontainers.image.revision=${{ github.sha }}
-outputs: type=docker,dest=/tmp/developer-workspace.tar
-cache-from: type=gha
-cache-to: type=gha,mode=max
-```
+- [x] **Step 3: load e test sullo stesso artifact**
 
-- [ ] **Step 3: caricare l'artifact e usare lo stesso tag per i test**
+`docker load` precede smoke e Playwright; entrambi usano `developer-workspace:sha-${GITHUB_SHA}`.
 
-Aggiungere:
+- [x] **Step 4: rendere robusto `mise install` in CI**
 
-```bash
-docker load --input /tmp/developer-workspace.tar
-```
+Il primo run reale ha fallito nello smoke perché `mise` ha raggiunto il rate limit GitHub anonimo (`403`, `0/60`). La correzione passa `MISE_GITHUB_TOKEN=${{ github.token }}` ai container di test, mantenendo il job `verify` read-only.
 
-Eseguire smoke test e Playwright contro:
+- [x] **Step 5: report Trivy completo non bloccante**
 
-```text
-developer-workspace:sha-${GITHUB_SHA}
-```
+`ignore-unfixed: false`, `exit-code: '0'`.
 
-- [ ] **Step 4: aggiungere il report Trivy completo non bloccante**
+- [x] **Step 6: gate Trivy fixable bloccante**
 
-Usare:
+`ignore-unfixed: true`, `exit-code: '1'`.
 
-```yaml
-uses: aquasecurity/trivy-action@v0.36.0
-with:
-  image-ref: developer-workspace:sha-${{ github.sha }}
-  format: table
-  severity: HIGH,CRITICAL
-  ignore-unfixed: false
-  vuln-type: os,library
-  scanners: vuln
-  version: v0.69.3
-  exit-code: '0'
-```
+- [x] **Step 7: verifica revision label**
 
-Questo passaggio mantiene visibili anche le CVE senza fix.
+La label `org.opencontainers.image.revision` deve coincidere con `GITHUB_SHA` prima che l'artifact sia considerato verificato.
 
-- [ ] **Step 5: aggiungere il gate Trivy fixable bloccante**
+- [x] **Step 8: separazione least-privilege del publish**
 
-Usare una seconda scansione dello stesso artifact:
+Il job `verify` conserva il tar solo su push. Il job `publish` ha `packages: write`, scarica lo stesso tar, ricontrolla la revision label e retagga/pusha senza build.
 
-```yaml
-uses: aquasecurity/trivy-action@v0.36.0
-with:
-  image-ref: developer-workspace:sha-${{ github.sha }}
-  format: table
-  severity: HIGH,CRITICAL
-  ignore-unfixed: true
-  vuln-type: os,library
-  scanners: vuln
-  version: v0.69.3
-  exit-code: '1'
-```
+- [ ] **Step 9: verifica reale PR**
 
-- [ ] **Step 6: verificare l'identità dell'artifact prima del publish**
-
-Controllare la label:
-
-```bash
-test "$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "developer-workspace:sha-${GITHUB_SHA}")" = "$GITHUB_SHA"
-```
-
-- [ ] **Step 7: pubblicare senza rebuild**
-
-Su `main`, retaggare e pushare la stessa immagine come:
-
-```text
-ghcr.io/${repository_owner}/developer-workspace:latest
-ghcr.io/${repository_owner}/developer-workspace:sha-${GITHUB_SHA}
-```
-
-Su tag `v*`, retaggare e pushare la stessa immagine come:
-
-```text
-ghcr.io/${repository_owner}/developer-workspace:${GITHUB_REF_NAME}
-```
-
-Non deve esistere alcun secondo build dedicato al publish.
-
-- [ ] **Step 8: verifica statica**
-
-Il workflow finale deve soddisfare contemporaneamente:
-
-```text
-count(docker/build-push-action) == 1
-count(aquasecurity/trivy-action) == 2
-contains(ignore-unfixed: false)
-contains(exit-code: '0')
-contains(ignore-unfixed: true)
-contains(exit-code: '1')
-contains(severity: HIGH,CRITICAL)
-contains(outputs: type=docker,dest=/tmp/developer-workspace.tar)
-contains(docker load --input /tmp/developer-workspace.tar)
-contains(org.opencontainers.image.revision)
-```
-
-- [ ] **Step 9: verifica reale tramite PR**
-
-Aprire un PR verso `main` e verificare il run GitHub Actions. Devono essere eseguiti:
+Atteso nel job `verify`:
 
 ```text
 Lint shell scripts
@@ -157,21 +81,18 @@ Block fixable HIGH/CRITICAL vulnerabilities
 Verify exact image artifact
 ```
 
-Su PR non deve avvenire alcun push a GHCR.
+Su PR `Preserve verified image artifact` e l'intero job `publish` devono essere skipped.
 
-- [ ] **Step 10: commit**
+- [ ] **Step 10: se il gate Trivy fallisce, remediation guidata dai finding**
 
-Commit previsto:
-
-```text
-ci: scan and publish exact workspace image artifact
-```
+Modificare Dockerfile/base image solo per `HIGH/CRITICAL` fixable emerse dal gate. Nessuna remediation basata sul conteggio aggregato Harbor.
 
 ### Task 2: verificare l'integrazione post-merge
 
 Questa task non viene eseguita senza merge esplicitamente richiesto.
 
 - [ ] Dopo merge verificare il run naturale `main`.
+- [ ] Verificare upload/download del tar e publish senza rebuild.
 - [ ] Verificare che `latest` e `sha-${GITHUB_SHA}` puntino all'artifact validato.
 - [ ] Verificare replica e scan Harbor.
 - [ ] Verificare che CVE senza fix non blocchino il workload secondo la policy #677.
