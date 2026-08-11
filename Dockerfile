@@ -1,26 +1,28 @@
 # syntax=docker/dockerfile:1.7
+ARG DEBIAN_VERSION=13
 ARG CODE_SERVER_VERSION=4.132.0
 
-FROM codercom/code-server:${CODE_SERVER_VERSION}
+FROM debian:${DEBIAN_VERSION}-slim
 
-USER root
-
+ARG CODE_SERVER_VERSION
+ARG CODE_SERVER_DEB_SHA256=18e0e69920ab23b725cb219fb42bc045a908421448cf496a3124314e1a02bcf1
 ARG MISE_VERSION=2026.7.3
 ARG OH_MY_BASH_REF=627913b75855036cb5af2f3ad130c66a335e7382
 
+ENV DEBIAN_FRONTEND=noninteractive \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8
+
 SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
 
-# The upstream image uses fixuid from its own entrypoint. This image replaces
-# that entrypoint and always runs as UID 1000, so the inherited setuid binary
-# is unused and is removed instead of carrying its vulnerable Go runtime.
-RUN rm -f /usr/local/bin/fixuid \
- && rm -rf /etc/fixuid
-
-# Keep only the operating-system bootstrap in the immutable image. Fast-moving
-# developer CLIs are installed by mise in the persistent, writable home.
+# Build the runtime from Debian slim instead of inheriting the upstream
+# code-server container. This keeps only the workspace contract and avoids
+# upstream image-only tools such as fixuid, editors, man-db, htop and zsh.
 # Chromium itself remains project-managed; the image provides only the Debian
 # runtime and fonts required to execute Playwright's downloaded browser.
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update \
+ && apt-get upgrade -y \
+ && apt-get install -y --no-install-recommends \
     bash-completion ca-certificates curl dnsutils git gnupg less make openssh-client \
     sudo tmux unzip util-linux wget xz-utils \
     fonts-liberation fonts-noto-color-emoji fonts-unifont libfontconfig1 libfreetype6 \
@@ -28,6 +30,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcairo2 libcups2t64 libdbus-1-3 libdrm2 libgbm1 libglib2.0-0t64 \
     libnspr4 libnss3 libpango-1.0-0 libx11-6 libxcb1 libxcomposite1 \
     libxdamage1 libxext6 libxfixes3 libxkbcommon0 libxrandr2 \
+ && curl -fsSL \
+      "https://github.com/coder/code-server/releases/download/v${CODE_SERVER_VERSION}/code-server_${CODE_SERVER_VERSION}_amd64.deb" \
+      -o /tmp/code-server.deb \
+ && echo "${CODE_SERVER_DEB_SHA256}  /tmp/code-server.deb" | sha256sum -c - \
+ && apt-get install -y --no-install-recommends /tmp/code-server.deb \
+ && rm -f /tmp/code-server.deb \
+ && useradd --create-home --uid 1000 --user-group --shell /bin/bash coder \
+ && echo "coder ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/coder \
+ && chmod 0440 /etc/sudoers.d/coder \
+ && mkdir -p /workspaces \
+ && chown coder:coder /workspaces \
  && rm -rf /var/lib/apt/lists/*
 
 COPY scripts/download-verified.sh /usr/local/bin/download-verified

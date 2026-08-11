@@ -56,6 +56,7 @@ All notable changes to this project are documented in this file.
 - Use standard Docker metadata and Trivy gates
 - Remove custom Trivy policy parser
 - Remove custom Trivy policy test
+- Scope Trivy gate exceptions to upstream paths
 
 
 ### Maintenance
@@ -66,3 +67,7 @@ All notable changes to this project are documented in this file.
 feat(changelog): centralize git-cliff automation
 - Remove unused inherited fixuid
 - Document temporary upstream CVE exceptions
+- Merge pull request #18 from ignazio-ingenito/wave-16-availability-first-ci
+
+ci: gate fixable CVEs on the exact workspace image
+- **security:** Build workspace from Debian slim
