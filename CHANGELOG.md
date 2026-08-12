@@ -24,6 +24,7 @@ All notable changes to this project are documented in this file.
 - **workspace:** Update code-server base to 4.132.0
 - **ci:** Align standard image checks
 - **ci:** Skip changelog on Renovate PRs
+- **ci:** Run policy check through bash
 
 
 ### Documentation
