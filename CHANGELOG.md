@@ -23,8 +23,9 @@ All notable changes to this project are documented in this file.
 - **ci:** Guard changelog checkout against missing head branch
 - **workspace:** Update code-server base to 4.132.0
 - **ci:** Align standard image checks
-- **ci:** Skip changelog on Renovate PRs
-- **ci:** Run policy check through bash
+- **ci:** Skip changelog writes on Renovate PRs (#26)
+- **deps:** Assign GitHub Actions to Dependabot
+- **deps:** Configure Dependabot for GitHub Actions
 
 
 ### Documentation
@@ -48,8 +49,6 @@ All notable changes to this project are documented in this file.
 
 - **changelog:** Satisfy shellcheck
 - Define availability-first Trivy policy contract
-- **ci:** Cover Renovate changelog exclusion
-- **ci:** Run changelog policy check
 
 
 ### CI
