@@ -36,12 +36,18 @@ All notable changes to this project are documented in this file.
 - Split Trivy reporting from blocking gate
 - Document least-privilege publish split
 - Align plan with least-privilege verification
+- Archive completed availability-first plan
+- Archive superseded availability-first design
+- Remove archived availability-first plan from active path
+- Remove archived availability-first design from active path
 
 
 ### Tests
 
 - **changelog:** Satisfy shellcheck
 - Define availability-first Trivy policy contract
+- **ci:** Cover Renovate changelog exclusion
+- **ci:** Run changelog policy check
 
 
 ### CI
@@ -70,4 +76,4 @@ feat(changelog): centralize git-cliff automation
 - Merge pull request #18 from ignazio-ingenito/wave-16-availability-first-ci
 
 ci: gate fixable CVEs on the exact workspace image
-- **security:** Build workspace from Debian slim
+- Build workspace from Debian slim
