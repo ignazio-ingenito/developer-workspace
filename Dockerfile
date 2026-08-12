@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.26
 ARG DEBIAN_VERSION=13
 ARG CODE_SERVER_VERSION=4.132.0
 
