@@ -58,7 +58,25 @@ jobs:
           test "$HEAD_REF" != "$DEFAULT_BRANCH"
           git fetch --force --tags origin
 
+      - name: Check whether pull request head is still current
+        id: freshness
+        shell: bash
+        env:
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          status=$(bash scripts/changelog-branch-update.sh status "$EVENT_HEAD_SHA" "$HEAD_REF")
+          if [[ "$status" == stale ]]; then
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+            echo "Pull request head advanced; skipping stale changelog run"
+            exit 0
+          fi
+          test "$status" = current
+          echo "stale=false" >> "$GITHUB_OUTPUT"
+
       - name: Select git-cliff configuration
+        if: steps.freshness.outputs.stale != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -120,6 +138,21 @@ jobs:
           printf 'CLIFF_CONFIG=%s\n' "$RUNNER_TEMP/changelog-cliff.toml" >> "$GITHUB_ENV"
 
       - name: Generate CHANGELOG.md
+        id: git-cliff-first
+        if: steps.freshness.outputs.stale != 'true'
+        continue-on-error: true
+        uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5 # v4
+        with:
+          version: v2.13.1
+          config: ${{ env.CLIFF_CONFIG }}
+          args: --no-exec --verbose
+        env:
+          OUTPUT: CHANGELOG.md
+
+      - name: Retry CHANGELOG.md generation once
+        if: >-
+          steps.freshness.outputs.stale != 'true' &&
+          steps.git-cliff-first.outcome == 'failure'
         uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5 # v4
         with:
           version: v2.13.1
@@ -129,8 +162,10 @@ jobs:
           OUTPUT: CHANGELOG.md
 
       - name: Commit CHANGELOG.md when changed
+        if: steps.freshness.outputs.stale != 'true'
         shell: bash
         env:
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
           set -euo pipefail
@@ -147,4 +182,4 @@ jobs:
           test "$staged" = "CHANGELOG.md"
 
           git commit -m "docs(changelog): update"
-          git push origin "HEAD:$HEAD_REF"
+          bash scripts/changelog-branch-update.sh push "$EVENT_HEAD_SHA" "$HEAD_REF"
