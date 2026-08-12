@@ -28,6 +28,9 @@ jobs:
       - name: Verify changelog workflow policy
         run: bash scripts/test-changelog-policy.sh
 
+      - name: Verify changelog branch-write races
+        run: bash scripts/test-changelog-race.sh
+
       - name: Generate immutable image metadata
         id: meta
         uses: docker/metadata-action@v6
