@@ -25,6 +25,7 @@ All notable changes to this project are documented in this file.
 - **ci:** Align standard image checks
 - **ci:** Skip changelog writes on Renovate PRs (#26)
 - **deps:** Make updater ownership exclusive (#27)
+- **changelog:** Classify stale branch writes
 
 
 ### Documentation
