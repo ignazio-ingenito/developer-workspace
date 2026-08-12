@@ -24,8 +24,7 @@ All notable changes to this project are documented in this file.
 - **workspace:** Update code-server base to 4.132.0
 - **ci:** Align standard image checks
 - **ci:** Skip changelog writes on Renovate PRs (#26)
-- **deps:** Assign GitHub Actions to Dependabot
-- **deps:** Configure Dependabot for GitHub Actions
+- **deps:** Make updater ownership exclusive (#27)
 
 
 ### Documentation
@@ -49,6 +48,9 @@ All notable changes to this project are documented in this file.
 
 - **changelog:** Satisfy shellcheck
 - Define availability-first Trivy policy contract
+- **changelog:** Cover branch-write races
+- **changelog:** Specify stale and retry policy
+- **changelog:** Run race regression in CI
 
 
 ### CI
