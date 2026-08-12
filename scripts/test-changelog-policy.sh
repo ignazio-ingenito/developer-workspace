@@ -13,6 +13,7 @@ grep -qF "steps.freshness.outputs.stale != 'true'" "$workflow"
 grep -qF 'id: git-cliff-first' "$workflow"
 grep -qF 'continue-on-error: true' "$workflow"
 grep -qF "steps.git-cliff-first.outcome == 'failure'" "$workflow"
+grep -qF "rm -rf \"\$RUNNER_TEMP/git-cliff\"" "$workflow"
 test "$(grep -cF 'uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5' "$workflow")" -eq 2
 grep -qF "bash scripts/changelog-branch-update.sh push \"\$EVENT_HEAD_SHA\" \"\$HEAD_REF\"" "$workflow"
 
