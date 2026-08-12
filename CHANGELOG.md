@@ -55,6 +55,7 @@ All notable changes to this project are documented in this file.
 - **changelog:** Specify stale and retry policy
 - **changelog:** Run race regression in CI
 - **changelog:** Expose behavioral RED before lint
+- **changelog:** Satisfy shellcheck literal matching
 
 
 ### CI
