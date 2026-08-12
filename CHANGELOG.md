@@ -44,6 +44,7 @@ All notable changes to this project are documented in this file.
 - Archive superseded availability-first design
 - Remove archived availability-first plan from active path
 - Remove archived availability-first design from active path
+- **changelog:** Document deterministic race handling
 
 
 ### Tests
