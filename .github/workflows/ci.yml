@@ -26,7 +26,7 @@ jobs:
         run: shellcheck scripts/*.sh
 
       - name: Verify changelog workflow policy
-        run: scripts/test-changelog-policy.sh
+        run: bash scripts/test-changelog-policy.sh
 
       - name: Generate immutable image metadata
         id: meta
