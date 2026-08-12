@@ -73,6 +73,7 @@ All notable changes to this project are documented in this file.
 - Remove custom Trivy policy parser
 - Remove custom Trivy policy test
 - Scope Trivy gate exceptions to upstream paths
+- **changelog:** Restore lint ordering
 
 
 ### Maintenance
