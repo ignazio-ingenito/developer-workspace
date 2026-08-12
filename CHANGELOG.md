@@ -51,6 +51,7 @@ All notable changes to this project are documented in this file.
 - **changelog:** Cover branch-write races
 - **changelog:** Specify stale and retry policy
 - **changelog:** Run race regression in CI
+- **changelog:** Expose behavioral RED before lint
 
 
 ### CI
