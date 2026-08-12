@@ -149,6 +149,13 @@ jobs:
         env:
           OUTPUT: CHANGELOG.md
 
+      - name: Reset git-cliff download after failed first attempt
+        if: >-
+          steps.freshness.outputs.stale != 'true' &&
+          steps.git-cliff-first.outcome == 'failure'
+        shell: bash
+        run: rm -rf "$RUNNER_TEMP/git-cliff"
+
       - name: Retry CHANGELOG.md generation once
         if: >-
           steps.freshness.outputs.stale != 'true' &&
