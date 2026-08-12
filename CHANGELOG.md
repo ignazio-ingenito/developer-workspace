@@ -58,6 +58,7 @@ All notable changes to this project are documented in this file.
 - **changelog:** Expose behavioral RED before lint
 - **changelog:** Satisfy shellcheck literal matching
 - **changelog:** Require retry cleanup
+- **changelog:** Cover detached HEAD refspec
 
 
 ### CI
