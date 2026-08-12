@@ -27,6 +27,7 @@ All notable changes to this project are documented in this file.
 - **deps:** Make updater ownership exclusive (#27)
 - **changelog:** Classify stale branch writes
 - **changelog:** Make stale writes non-fatal
+- **changelog:** Reset failed git-cliff download
 
 
 ### Documentation
