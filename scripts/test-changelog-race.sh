@@ -30,6 +30,15 @@ new_fixture() {
   git -C "$worker" config user.name "github-actions[bot]"
   git -C "$worker" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+  # actions/checkout with an explicit PR head SHA leaves HEAD detached.
+  # Exercise the same state so the destination refspec cannot rely on a
+  # locally checked-out branch name.
+  git -C "$worker" checkout -q --detach "$(git -C "$worker" rev-parse HEAD)"
+  if git -C "$worker" symbolic-ref -q HEAD >/dev/null; then
+    echo 'fixture HEAD is not detached' >&2
+    exit 1
+  fi
+
   printf '%s\n' "$remote|$seed|$worker"
 }
 
@@ -40,7 +49,8 @@ make_changelog_commit() {
   git -C "$worker" commit -q -m 'docs(changelog): update'
 }
 
-# Current head: the changelog commit must fast-forward the branch.
+# Current detached head: the changelog commit must fast-forward the branch via
+# a fully qualified destination refspec.
 IFS='|' read -r remote seed worker < <(new_fixture current)
 expected=$(git -C "$worker" rev-parse HEAD)
 make_changelog_commit "$worker"
