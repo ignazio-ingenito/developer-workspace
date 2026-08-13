@@ -46,6 +46,25 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
+      - name: Check out called workflow support files
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .changelog-workflow
+          sparse-checkout: scripts/changelog-branch-update.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Install called workflow support files
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -m 0755 \
+            "$GITHUB_WORKSPACE/.changelog-workflow/scripts/changelog-branch-update.sh" \
+            "$RUNNER_TEMP/changelog-branch-update.sh"
+          printf '/.changelog-workflow/\n' >> .git/info/exclude
+
       - name: Verify the write target
         shell: bash
         env:
@@ -66,7 +85,7 @@ jobs:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
           set -euo pipefail
-          status=$(bash scripts/changelog-branch-update.sh status "$EVENT_HEAD_SHA" "$HEAD_REF")
+          status=$(bash "$RUNNER_TEMP/changelog-branch-update.sh" status "$EVENT_HEAD_SHA" "$HEAD_REF")
           if [[ "$status" == stale ]]; then
             echo "stale=true" >> "$GITHUB_OUTPUT"
             echo "Pull request head advanced; skipping stale changelog run"
@@ -189,4 +208,4 @@ jobs:
           test "$staged" = "CHANGELOG.md"
 
           git commit -m "docs(changelog): update"
-          bash scripts/changelog-branch-update.sh push "$EVENT_HEAD_SHA" "$HEAD_REF"
+          bash "$RUNNER_TEMP/changelog-branch-update.sh" push "$EVENT_HEAD_SHA" "$HEAD_REF"

@@ -15,6 +15,11 @@ branch only when the file changed. A repository-local `cliff.toml` overrides
 the common configuration. External commands in local configurations are
 disabled with `git-cliff --no-exec`.
 
+Support files owned by the reusable workflow are checked out separately from
+`job.workflow_repository` at the exact `job.workflow_sha`, copied to
+`RUNNER_TEMP`, and executed from there. They are never loaded from the caller
+repository, so external consumers do not copy central helper scripts.
+
 ## GitHub App
 
 Create the dedicated GitHub App with these settings:
@@ -75,6 +80,7 @@ Install git-cliff 2.13.1, then run:
 ```bash
 GIT_CLIFF=git-cliff scripts/test-changelog.sh
 bash scripts/test-changelog-policy.sh
+bash scripts/test-changelog-external-consumer.sh
 bash scripts/test-changelog-race.sh
 ```
 
@@ -83,4 +89,6 @@ changelogs, idempotence, Conventional and unconventional commits, all required
 groups, and exclusion of the bot changelog commit. The policy and race tests
 cover bot exclusions, bounded retry wiring, a current fast-forward update, a
 stale branch advance that must not write, and a real push rejection that must
-remain fatal.
+remain fatal. The external-consumer contract verifies that support files come
+from the exact called-workflow revision and that a caller without the helper
+can still perform the freshness check.
