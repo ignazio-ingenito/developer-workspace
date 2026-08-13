@@ -26,7 +26,7 @@ All notable changes to this project are documented in this file.
 - **ci:** Skip changelog writes on Renovate PRs (#26)
 - **deps:** Make updater ownership exclusive (#27)
 - **changelog:** Make stale branch writes non-fatal (#30)
-- **changelog:** Load helpers from called workflow
+- **changelog:** Load helpers from called workflow (#32)
 
 
 ### Documentation
@@ -79,3 +79,4 @@ feat(changelog): centralize git-cliff automation
 
 ci: gate fixable CVEs on the exact workspace image
 - Build workspace from Debian slim
+- **deps:** Align Dependabot cooldown
