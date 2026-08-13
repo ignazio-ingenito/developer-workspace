@@ -117,6 +117,3 @@ time.
 4. `homelab` references the exact Harbor tag.
 
 No credentials belong in this repository or image.
-
-Repository changelogs are maintained through the centralized reusable GitHub
-Actions workflow documented in [docs/CHANGELOG-AUTOMATION.md](docs/CHANGELOG-AUTOMATION.md).

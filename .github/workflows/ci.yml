@@ -25,15 +25,6 @@ jobs:
       - name: Lint shell scripts
         run: shellcheck scripts/*.sh
 
-      - name: Verify changelog workflow policy
-        run: bash scripts/test-changelog-policy.sh
-
-      - name: Verify external changelog consumer contract
-        run: bash scripts/test-changelog-external-consumer.sh
-
-      - name: Verify changelog branch-write races
-        run: bash scripts/test-changelog-race.sh
-
       - name: Generate immutable image metadata
         id: meta
         uses: docker/metadata-action@v6
