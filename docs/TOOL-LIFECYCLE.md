@@ -43,6 +43,32 @@ Chromium itself is not bundled in the image. Repositories such as those using
 Playwright keep ownership of their browser version and cache; the immutable
 image supplies the Debian runtime libraries and fonts that require root access.
 
+## Boundary with CI runners
+
+Developer Workspace and CI runners are separate products with independent
+requirements and lifecycles.
+
+- Developer Workspace is a persistent, human-operated code-server environment.
+  Its broad tool catalog exists for interactive convenience, recovery and
+  availability.
+- CI runners are execution infrastructure for automated jobs. Their base image
+  should contain only what the runner runtime or technical runner class actually
+  requires; workflow- or project-specific tools belong in the workflow or the
+  repository and should use standard upstream setup/actions or package managers
+  where practical.
+- A tool being available in Developer Workspace is **not** evidence that it
+  belongs in a CI runner image. CI customization requires an independent,
+  measurable need such as startup cost, reliability or a technical constraint.
+- The Developer Workspace image must not be used as a CI runner base merely to
+  make the two environments look alike, and CI runner requirements must not
+  expand the Developer Workspace image unless the workspace itself needs them.
+- Repository-owned tool configuration such as `mise.toml` may be shared between
+  interactive development and CI when it genuinely describes the project's
+  toolchain. This does not create a shared base-image or lifecycle contract.
+
+The intended common layer is therefore the **project tool contract**, when one
+exists, not a universal workstation/runner image.
+
 ## First start after deploying the image
 
 The entrypoint installs missing home tools and migrates Codex once. On later
@@ -112,5 +138,6 @@ mise use node@24
 mise install
 ```
 
-Commit the repository's `mise.toml` so every developer and CI job uses the same
-project toolchain.
+Commit the repository's `mise.toml` so interactive development and CI can use
+the same project toolchain when that is useful, without coupling their base
+images.
