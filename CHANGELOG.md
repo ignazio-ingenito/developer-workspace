@@ -25,9 +25,8 @@ All notable changes to this project are documented in this file.
 - **ci:** Align standard image checks
 - **ci:** Skip changelog writes on Renovate PRs (#26)
 - **deps:** Make updater ownership exclusive (#27)
-- **changelog:** Classify stale branch writes
-- **changelog:** Make stale writes non-fatal
-- **changelog:** Reset failed git-cliff download
+- **changelog:** Make stale branch writes non-fatal (#30)
+- **changelog:** Load helpers from called workflow
 
 
 ### Documentation
@@ -45,20 +44,12 @@ All notable changes to this project are documented in this file.
 - Archive superseded availability-first design
 - Remove archived availability-first plan from active path
 - Remove archived availability-first design from active path
-- **changelog:** Document deterministic race handling
 
 
 ### Tests
 
 - **changelog:** Satisfy shellcheck
 - Define availability-first Trivy policy contract
-- **changelog:** Cover branch-write races
-- **changelog:** Specify stale and retry policy
-- **changelog:** Run race regression in CI
-- **changelog:** Expose behavioral RED before lint
-- **changelog:** Satisfy shellcheck literal matching
-- **changelog:** Require retry cleanup
-- **changelog:** Cover detached HEAD refspec
 
 
 ### CI
@@ -74,7 +65,6 @@ All notable changes to this project are documented in this file.
 - Remove custom Trivy policy parser
 - Remove custom Trivy policy test
 - Scope Trivy gate exceptions to upstream paths
-- **changelog:** Restore lint ordering
 
 
 ### Maintenance
