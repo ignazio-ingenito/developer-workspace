@@ -68,17 +68,6 @@ jobs:
           --entrypoint /usr/local/lib/developer-workspace/test-playwright-runtime.sh
           "$IMAGE_LOCAL"
 
-      - name: Report all HIGH/CRITICAL vulnerabilities
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: ${{ env.IMAGE_LOCAL }}
-          format: table
-          severity: HIGH,CRITICAL
-          ignore-unfixed: false
-          vuln-type: os,library
-          scanners: vuln
-          version: v0.73.0
-          exit-code: '0'
 
       - name: Block actionable HIGH/CRITICAL vulnerabilities
         uses: aquasecurity/trivy-action@v0.36.0
