@@ -48,8 +48,8 @@ Languages required by npm/pipx backends are installed first. A registry outage
 does not block code-server: installed tools remain usable. Retry with
 `mise install` and `codex update`.
 
-`workspace-doctor` keeps workspace-specific checks blocking and delegates generic
-tool-manager diagnostics to `mise doctor`; diagnostic-only findings remain visible without overriding verified workspace behavior.
+`workspace-doctor` keeps workspace-specific checks and delegates generic
+tool-manager diagnostics to `mise doctor`.
 
 ## Codex availability-first launcher
 
