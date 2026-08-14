@@ -1,18 +1,21 @@
-# Harbor promotion
+# Harbor consumption
 
-The release workflow publishes immutable tags to GHCR. Promote the accepted tag to Harbor and verify that the digest is unchanged before updating `homelab`.
+The release workflow publishes immutable tags to GHCR. Homelab consumes the accepted image through the authenticated Harbor Proxy Cache project `private-ghcr`.
 
-```bash
-skopeo copy \
-  docker://ghcr.io/ignazio-ingenito/developer-workspace:v0.1.0 \
-  docker://harbor.lab.skunklabs.uk/<project>/developer-workspace:v0.1.0
+Canonical runtime path:
+
+```text
+harbor.lab.skunklabs.uk/private-ghcr/ignazio-ingenito/developer-workspace:<immutable-calver>
 ```
 
-Credentials must come from the operator environment or Vaultwarden and must never be committed.
+There is no steady-state manual `skopeo copy`, hosted-project promotion, or preventive GHCR → Harbor replication step. On cache miss, Harbor resolves the immutable upstream artifact from GHCR and then owns registry scanning/rescanning.
 
-After copying:
+Operational flow:
 
-1. compare the GHCR and Harbor digests;
-2. run the image smoke test from the Harbor reference;
-3. update `homelab` to the exact Harbor tag or digest;
-4. retain the previous known-good tag for rollback.
+1. verify the producer CI built, tested and scanned the exact artifact that was published;
+2. select the immutable CalVer accepted for deployment;
+3. update `homelab` to the canonical Harbor Proxy Cache reference;
+4. let Harbor fetch the GHCR artifact on cache miss;
+5. verify the running image identity and keep the previous known-good CalVer/digest for rollback.
+
+Credentials remain owned by the producer/GHCR publication path and by Homelab's Harbor pull configuration. Do not add Harbor push credentials to this repository.
