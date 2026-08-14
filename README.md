@@ -111,9 +111,9 @@ time.
 
 ## Release flow
 
-1. GitHub Actions builds and tests an immutable image.
-2. The image is published to GHCR.
-3. The accepted version is replicated/imported into Harbor.
-4. `homelab` references the exact Harbor tag.
+1. GitHub Actions builds, tests and scans one immutable image artifact.
+2. The same verified artifact is published to GHCR with immutable CalVer/SHA tags.
+3. Homelab references the accepted immutable tag through the authenticated Harbor Proxy Cache path `private-ghcr/ignazio-ingenito/developer-workspace`.
+4. Harbor fetches the artifact from GHCR on cache miss and performs registry scanning/rescanning; no manual GHCR-to-Harbor promotion or replication step is required.
 
 No credentials belong in this repository or image.
