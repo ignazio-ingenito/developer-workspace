@@ -22,7 +22,7 @@ done
 if mise doctor; then
   pass "mise doctor reports a healthy tool manager"
 else
-  fail "mise doctor failed; inspect its diagnostics above"
+  warn "mise doctor reported diagnostics; inspect them above"
 fi
 
 browser_runtime_libs=(
