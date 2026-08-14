@@ -1,105 +1,61 @@
 # Workspace tools
 
-Most command-line tools live in the persistent, writable home. They survive a
-Pod restart and can be updated without rebuilding the Developer Workspace
-image.
+Most command-line tools live in the persistent, writable home and are owned
+directly by [mise](https://mise.jdx.dev/), using the baseline in
+`config/mise/workspace-tools.toml`.
 
-## The two commands to remember
-
-Show every tool, its version, owner, update method, and active path:
+## Commands
 
 ```bash
-workspace-tools
-```
-
-Update `mise`, all tools managed by `mise`, and Codex:
-
-```bash
-workspace-tools update
+mise ls          # installed and active tools
+mise doctor      # native diagnostics
+mise install     # install tools declared by the active configuration
+mise self-update --yes
+mise upgrade     # update within declared version ranges
+codex update     # update only Codex
 hash -r
 ```
 
-Open a new terminal after the update if an old terminal still resolves a
-previous command path.
+Project-specific versions remain owned by each repository through its
+`mise.toml`. Prefer `mise exec` in CI and scripts; interactive shells activate
+mise from `.bashrc`.
 
-## Where tools live
+## Ownership
 
 | Owner | Tools | Location | Update |
 | --- | --- | --- | --- |
-| Persistent home | mise, Node, Python 3, uv, GitHub CLI, chezmoi, Bitwarden CLI, SOPS, age, kubectl, Helm, kustomize, Argo CD, OpenTofu, Ansible, jq, yq, actionlint, Trivy, ripgrep, fd, ShellCheck | `~/.local` and `~/.local/share/mise` | `workspace-tools update` |
-| Persistent home | Codex | `~/.local/libexec/codex` | Automatically before a new Codex session, or `workspace-tools update` |
-| Image bootstrap | code-server, Bash, Git, SSH, tmux, curl, GnuPG, Chromium/Playwright runtime libraries and recovery utilities | `/usr` and `/usr/local` | Image rebuild and rollout |
-| Project | Versions required by one repository | The repository's `mise.toml` | Change and commit `mise.toml` |
+| Persistent home via mise | Node, Python, uv, GitHub CLI, chezmoi, Bitwarden CLI, SOPS, age, kubectl, Helm, kustomize, Argo CD, OpenTofu, Ansible, jq, yq, actionlint, Trivy, ripgrep, fd, ShellCheck | `~/.local/share/mise` | `mise install`, `mise upgrade` |
+| Persistent home | Codex | `~/.local/libexec/codex` | automatic before a new session, or `codex update` |
+| Image bootstrap | code-server, Bash, Git, SSH, tmux, curl, GnuPG, browser runtime libraries, recovery copy of mise | `/usr`, `/usr/local`, `/opt` | image rebuild and rollout |
+| Project | Repository-specific versions | repository `mise.toml` | reviewed repository change |
 
-The image contains a small recovery copy of `mise`. On first use it is copied
-to `~/.local/bin/mise`; that writable copy is the active binary and can update
-itself.
+The image contains a pinned, SHA-256-verified recovery copy of mise. The
+launcher copies it to `~/.local/bin/mise` only when the persistent home has no
+usable binary. Chromium itself is not bundled; projects own their browser
+version and cache while the image provides root-owned runtime libraries.
 
-The workspace Python default is constrained to major version `3`, so
-`workspace-tools update` may advance both patch and minor releases while a
-future major-version change remains explicit.
+## Startup and recovery
 
-Chromium itself is not bundled in the image. Repositories such as those using
-Playwright keep ownership of their browser version and cache; the immutable
-image supplies the Debian runtime libraries and fonts that require root access.
-
-## Boundary with CI runners
-
-Developer Workspace and CI runners are separate products with independent
-requirements and lifecycles.
-
-- Developer Workspace is a persistent, human-operated code-server environment.
-  Its broad tool catalog exists for interactive convenience, recovery and
-  availability.
-- CI runners are execution infrastructure for automated jobs. Their base image
-  should contain only what the runner runtime or technical runner class actually
-  requires; workflow- or project-specific tools belong in the workflow or the
-  repository and should use standard upstream setup/actions or package managers
-  where practical.
-- A tool being available in Developer Workspace is **not** evidence that it
-  belongs in a CI runner image. CI customization requires an independent,
-  measurable need such as startup cost, reliability or a technical constraint.
-- The Developer Workspace image must not be used as a CI runner base merely to
-  make the two environments look alike, and CI runner requirements must not
-  expand the Developer Workspace image unless the workspace itself needs them.
-- Repository-owned tool configuration such as `mise.toml` may be shared between
-  interactive development and CI when it genuinely describes the project's
-  toolchain. This does not create a shared base-image or lifecycle contract.
-
-The intended common layer is therefore the **project tool contract**, when one
-exists, not a universal workstation/runner image.
-
-## First start after deploying the image
-
-The entrypoint installs missing home tools and migrates Codex once. On later
-starts it skips this step unless the workspace tool list changed or Codex is
-missing.
-
-If the package registry is temporarily unavailable, code-server still starts.
-Retry from a terminal:
+The entrypoint runs this idempotent native sequence in the persistent home:
 
 ```bash
-workspace-tools update
-hash -r
-workspace-doctor
+mise install node python uv
+mise install
+codex --version
 ```
 
-The first installation can take a few minutes. Existing tools remain usable if
-a later update fails.
+Languages required by npm/pipx backends are installed first. A registry outage
+does not block code-server: installed tools remain usable. Retry with
+`mise install` and `codex update`.
 
-## Codex automatic updates
+`workspace-doctor` keeps workspace-specific checks and delegates generic
+tool-manager diagnostics to `mise doctor`.
 
-Starting `codex` checks for a newer standalone release when the last successful
-check is older than six hours. It never restarts a Codex process that is already
-running. A new process uses the updated version.
+## Codex availability-first launcher
 
-Update only Codex immediately with:
-
-```bash
-workspace-tools update codex
-```
-
-Automatic checks use these defaults:
+Starting `codex` checks for an update when the last successful check is older
+than six hours. A failed update keeps an existing binary usable and backs off
+for fifteen minutes. A first installation fails only when no binary exists.
 
 ```bash
 CODEX_AUTO_UPDATE=true
@@ -108,36 +64,20 @@ CODEX_AUTO_UPDATE_FAILURE_BACKOFF=900
 CODEX_AUTO_UPDATE_TIMEOUT=120
 ```
 
-If an update fails and Codex is already installed, the launcher warns and uses
-the installed version. A first installation fails only when no usable Codex
-binary exists.
+After a successful standalone installation, the launcher archives a historical
+`~/.local/bin/codex` shim so it cannot shadow `/usr/local/bin/codex`.
 
-## Migrating an older workspace
+## Boundary with CI runners
 
-After deploying this image over an existing persistent home, run:
+Developer Workspace and CI runners are separate products. The interactive tool
+catalog does not justify a custom runner image. CI jobs should use
+repository-owned declarations, standard setup actions or package managers
+unless a measured technical constraint requires otherwise.
 
-```bash
-workspace-tools update
-hash -r
-workspace-tools
-workspace-doctor
-```
+## Upstream references
 
-The command removes or archives the old npm-managed Codex command only after
-the standalone installation succeeds. Do not use `sudo npm install --global`
-to update workspace tools.
-
-## Project-specific versions
-
-The workspace list provides convenient defaults. A repository remains free to
-pin another version in its own `mise.toml`:
-
-```bash
-cd /workspaces/my-project
-mise use node@24
-mise install
-```
-
-Commit the repository's `mise.toml` so interactive development and CI can use
-the same project toolchain when that is useful, without coupling their base
-images.
+- [mise installation guidance](https://mise.jdx.dev/installing-mise.html)
+- [mise install](https://mise.jdx.dev/cli/install.html)
+- [mise upgrade](https://mise.jdx.dev/cli/upgrade.html)
+- [mise self-update](https://mise.jdx.dev/cli/self-update.html)
+- [mise getting started and doctor](https://mise.jdx.dev/getting-started)
