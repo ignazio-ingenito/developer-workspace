@@ -1,6 +1,6 @@
 # Task 9 — Integration runtime design
 
-**Status:** Draft  
+**Status:** Active  
 **Date:** 2026-08-14  
 **Mission:** `ignazio-ingenito/developer-workspace#33` — Task 9 Integration runtime  
 **RFC:** RFC-0001 v0.1.6
