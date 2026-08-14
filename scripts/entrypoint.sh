@@ -1,29 +1,29 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-home=${HOME:-/home/coder}
+workspace_home=${HOME:-/home/coder}
 workspaces_root=${WORKSPACES_ROOT:-/workspaces}
 baseline_bashrc=${DEVELOPER_WORKSPACE_BASHRC:-/opt/developer-workspace/bashrc}
 baseline_tmux=${DEVELOPER_WORKSPACE_TMUX_CONF:-/opt/developer-workspace/tmux.conf}
 baseline_extensions=${DEVELOPER_WORKSPACE_BASELINE_EXTENSIONS:-/opt/developer-workspace/code-server-extensions}
-workspace_tools=${WORKSPACE_TOOLS_COMMAND:-/usr/local/bin/workspace-tools}
-bootstrap_timeout=${WORKSPACE_TOOLS_BOOTSTRAP_TIMEOUT:-300}
-extensions_dir="$home/.local/share/code-server/extensions"
+mise_command=${MISE_COMMAND:-/usr/local/bin/mise}
+bootstrap_timeout=${WORKSPACE_BOOTSTRAP_TIMEOUT:-300}
+extensions_dir="$workspace_home/.local/share/code-server/extensions"
 
 mkdir -p \
-  "$home/.config/code-server" \
+  "$workspace_home/.config/code-server" \
   "$extensions_dir" \
-  "$home/.cache" \
-  "$home/.cache/developer-workspace" \
-  "$home/.cache/npm" \
-  "$home/.local/bin" \
-  "$home/.local/libexec/codex" \
-  "$home/.ssh" \
-  "$home/.config/Bitwarden CLI" \
-  "$home/.config/sops/age" \
+  "$workspace_home/.cache" \
+  "$workspace_home/.cache/developer-workspace" \
+  "$workspace_home/.cache/npm" \
+  "$workspace_home/.local/bin" \
+  "$workspace_home/.local/libexec/codex" \
+  "$workspace_home/.ssh" \
+  "$workspace_home/.config/Bitwarden CLI" \
+  "$workspace_home/.config/sops/age" \
   "$workspaces_root"
 
-chmod 700 "$home/.ssh" "$home/.config/sops/age"
+chmod 700 "$workspace_home/.ssh" "$workspace_home/.config/sops/age"
 
 # A PVC mounted on /home/coder hides image-layer files. Seed the immutable
 # baseline without replacing user-installed or user-updated extensions.
@@ -33,26 +33,38 @@ fi
 
 # Seed only a brand-new home. Existing and chezmoi-managed files are never
 # rewritten at container startup.
-if [[ ! -e "$home/.bashrc" ]]; then
-  install -m 0644 "$baseline_bashrc" "$home/.bashrc"
+if [[ ! -e "$workspace_home/.bashrc" ]]; then
+  install -m 0644 "$baseline_bashrc" "$workspace_home/.bashrc"
 fi
 
-if [[ ! -e "$home/.tmux.conf" ]]; then
-  install -m 0644 "$baseline_tmux" "$home/.tmux.conf"
+if [[ ! -e "$workspace_home/.tmux.conf" ]]; then
+  install -m 0644 "$baseline_tmux" "$workspace_home/.tmux.conf"
 fi
 
-# Install only missing or newly declared baseline tools. A transient registry
-# outage must not prevent code-server from starting; the user can retry with
-# `workspace-tools update` from a terminal.
-case ${WORKSPACE_TOOLS_BOOTSTRAP:-true} in
+run_with_timeout() {
+  if [[ $bootstrap_timeout =~ ^[1-9][0-9]*$ ]] && command -v timeout >/dev/null 2>&1; then
+    timeout "$bootstrap_timeout" "$@"
+  else
+    "$@"
+  fi
+}
+
+# mise owns the home tool manifest and performs idempotent installs. Languages
+# required by npm/pipx backends are installed first. A registry outage remains
+# non-fatal so code-server can start with the already installed toolset.
+case ${WORKSPACE_BOOTSTRAP:-true} in
   0 | false | FALSE | no | NO) ;;
   *)
-    if [[ $bootstrap_timeout =~ ^[1-9][0-9]*$ ]] && command -v timeout >/dev/null 2>&1; then
-      timeout "$bootstrap_timeout" "$workspace_tools" bootstrap || \
-        printf 'warning: workspace tool bootstrap failed; run workspace-tools update\n' >&2
-    else
-      "$workspace_tools" bootstrap || \
-        printf 'warning: workspace tool bootstrap failed; run workspace-tools update\n' >&2
+    bootstrap_status=0
+    (
+      cd "$workspace_home"
+      run_with_timeout "$mise_command" install node python uv
+      run_with_timeout "$mise_command" install
+      run_with_timeout /usr/local/bin/codex --version >/dev/null
+    ) || bootstrap_status=$?
+
+    if ((bootstrap_status != 0)); then
+      printf 'warning: workspace bootstrap failed; retry with mise install and codex update\n' >&2
     fi
     ;;
 esac
