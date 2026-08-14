@@ -10,7 +10,6 @@ directly by [mise](https://mise.jdx.dev/), using the baseline in
 mise ls          # installed and active tools
 mise doctor      # native diagnostics
 mise install     # install tools declared by the active configuration
-mise reshim -f      # refresh executable shims after installs
 mise self-update --yes
 mise upgrade     # update within declared version ranges
 codex update     # update only Codex
@@ -42,16 +41,15 @@ The entrypoint runs this idempotent native sequence in the persistent home:
 ```bash
 mise install node python uv
 mise install
-mise reshim -f
 codex --version
 ```
 
 Languages required by npm/pipx backends are installed first. A registry outage
 does not block code-server: installed tools remain usable. Retry with
-`mise install`, `mise reshim -f` and `codex update`.
+`mise install` and `codex update`.
 
-`workspace-doctor` keeps workspace-specific checks and delegates generic
-tool-manager diagnostics to `mise doctor`.
+`workspace-doctor` keeps workspace-specific checks blocking and delegates generic
+tool-manager diagnostics to `mise doctor`; diagnostic-only findings remain visible without overriding verified workspace behavior.
 
 ## Codex availability-first launcher
 
