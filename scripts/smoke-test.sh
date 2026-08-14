@@ -5,7 +5,7 @@ WORKSPACE_BOOTSTRAP=false /usr/local/lib/developer-workspace/entrypoint.sh true
 cd "$HOME"
 mise install node python uv
 mise install
-mise reshim
+mise reshim -f
 eval "$(mise activate bash)"
 
 required=(code-server bash git gh tmux mise chezmoi sops age kubectl helm kustomize tofu ansible jq yq rg fd ssh dig codex bw node npm python3 uv shellcheck workspace-doctor workspace-tmux argocd actionlint trivy)
