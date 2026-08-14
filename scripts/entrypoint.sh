@@ -60,7 +60,6 @@ case ${WORKSPACE_BOOTSTRAP:-true} in
       cd "$workspace_home"
       run_with_timeout "$mise_command" install node python uv
       run_with_timeout "$mise_command" install
-      run_with_timeout "$mise_command" reshim -f
       run_with_timeout /usr/local/bin/codex --version >/dev/null
     ) || bootstrap_status=$?
 
