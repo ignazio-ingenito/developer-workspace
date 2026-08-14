@@ -23,7 +23,7 @@
 - Keep `ci-container`; Testcontainers requires the existing Docker-capable runner.
 - No GitHub Actions rerun. New commits may trigger natural runs.
 - Do not touch `scripts/run-migration-rehearsal.sh`; no current CI workflow consumes it, so it is outside this Task 9 tranche.
-- Open PR #387 changes many UI/current-state files but does not currently change the target integration files `internal/webapp/runtime_test.go`, `internal/schemamigration/*`, the two integration workflows or the two shell scripts. Avoid unrelated UI/documentation edits that create conflict with #387.
+- Open PR #387 changes many UI/current-state files but does not currently change `internal/webapp/runtime_test.go`, `internal/schemamigration/*`, the two integration workflows or the two shell scripts. Avoid unrelated UI/documentation edits that create conflict with #387.
 
 **Upstream API references:**
 - `https://golang.testcontainers.org/modules/postgres/`
@@ -32,35 +32,24 @@
 
 ---
 
-### Task 1: Add the Testcontainers dependencies without changing runtime behavior
+### Task 1: Add Testcontainers at the reviewed version
 
 **Files:**
 - Modify: `go.mod`
 - Modify: `go.sum`
 
 **Interfaces:**
-- Produces: official Testcontainers core and PostgreSQL modules available to `_test.go` files.
+- Produces: Testcontainers core and PostgreSQL modules available only to test files.
 
-- [ ] **Step 1: Add only the required modules at the reviewed version**
-
-Run:
+- [ ] **Step 1: Add only the required modules**
 
 ```bash
 go get github.com/testcontainers/testcontainers-go@v0.42.0 \
   github.com/testcontainers/testcontainers-go/modules/postgres@v0.42.0
-```
-
-- [ ] **Step 2: Normalize modules**
-
-Run:
-
-```bash
 go mod tidy
 ```
 
-- [ ] **Step 3: Verify the ordinary Go suite still passes before integration code changes**
-
-Run:
+- [ ] **Step 2: Verify no pre-existing Go behavior regressed**
 
 ```bash
 go test -count=1 ./...
@@ -68,13 +57,11 @@ go test -count=1 ./...
 
 Expected: PASS.
 
-- [ ] **Step 4: Commit dependency setup together with the first test task, not as a standalone feature commit**
-
-Do not commit yet; dependency changes are consumed by Task 2.
+Do not commit yet; Task 2 consumes these dependencies.
 
 ---
 
-### Task 2: Replace schema-migrator shell orchestration with a package integration test
+### Task 2: Replace schema-migrator shell orchestration with a Go integration test
 
 **Files:**
 - Create: `internal/schemamigration/integration_test.go`
@@ -84,12 +71,12 @@ Do not commit yet; dependency changes are consumed by Task 2.
 - Modify: `go.sum`
 
 **Interfaces:**
-- Consumes: `schemamigration.Load`, `Open`, `Runner.Inspect`, `Runner.Apply`, repository `db/migrations.Files`.
-- Produces: Go test `TestRunnerAgainstPostgres` that owns one PostgreSQL Testcontainer and verifies the former script's real behaviors.
+- Consumes: `schemamigration.Load`, `Open`, `Runner.Inspect`, `Runner.Apply`, `db/migrations.Files`.
+- Produces: `TestRunnerAgainstPostgres`.
 
-- [ ] **Step 1: Write the integration test while the shell gate still exists**
+- [ ] **Step 1: Create package-local test helpers**
 
-Create `internal/schemamigration/integration_test.go` with package `schemamigration_test` and these imports/boundaries:
+Start the file with:
 
 ```go
 package schemamigration_test
@@ -98,6 +85,8 @@ import (
     "context"
     "net/url"
     "os"
+    "path/filepath"
+    "runtime"
     "strings"
     "sync"
     "testing"
@@ -110,9 +99,19 @@ import (
 )
 ```
 
-Use a local test-only URL helper, not a reusable package:
+Add these helpers in the test file only:
 
 ```go
+func repositoryFile(t *testing.T, parts ...string) string {
+    t.Helper()
+    _, file, _, ok := runtime.Caller(0)
+    if !ok {
+        t.Fatal("resolve integration test path")
+    }
+    root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+    return filepath.Join(append([]string{root}, parts...)...)
+}
+
 func databaseURL(t *testing.T, base, user, password, database string) string {
     t.Helper()
     parsed, err := url.Parse(base)
@@ -126,9 +125,26 @@ func databaseURL(t *testing.T, base, user, password, database string) string {
     parsed.RawQuery = query.Encode()
     return parsed.String()
 }
+
+func connectSimple(t *testing.T, ctx context.Context, databaseURL string) *pgx.Conn {
+    t.Helper()
+    config, err := pgx.ParseConfig(databaseURL)
+    if err != nil {
+        t.Fatal(err)
+    }
+    config.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
+    conn, err := pgx.ConnectConfig(ctx, config)
+    if err != nil {
+        t.Fatal(err)
+    }
+    t.Cleanup(func() { _ = conn.Close(context.Background()) })
+    return conn
+}
 ```
 
-Start PostgreSQL using the official module:
+- [ ] **Step 2: Start one PostgreSQL Testcontainer and create the migration identities**
+
+Inside `TestRunnerAgainstPostgres`:
 
 ```go
 ctx := context.Background()
@@ -150,69 +166,166 @@ adminURL, err := ctr.ConnectionString(ctx, "sslmode=disable")
 if err != nil {
     t.Fatal(err)
 }
-```
+admin := connectSimple(t, ctx, adminURL)
 
-Create the same roles/databases as the shell script using individual `pgx.Conn.Exec` calls so `CREATE DATABASE` is never hidden inside a transaction:
+for _, statement := range []string{
+    "CREATE ROLE iwant_migrator NOLOGIN",
+    "CREATE ROLE iwant_app_runtime NOLOGIN",
+    "CREATE ROLE iwant_postgrest NOLOGIN",
+    "CREATE ROLE iwant_authenticator LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION",
+    "GRANT iwant_postgrest TO iwant_authenticator",
+    "CREATE ROLE iwant_migration_runner LOGIN NOINHERIT PASSWORD 'iwant-migration-test'",
+    "GRANT iwant_migrator TO iwant_migration_runner",
+    "CREATE DATABASE iwant OWNER iwant_migrator",
+    "CREATE DATABASE iwant_concurrent OWNER iwant_migrator",
+} {
+    if _, err := admin.Exec(ctx, statement); err != nil {
+        t.Fatalf("setup PostgreSQL with %q: %v", statement, err)
+    }
+}
 
-```sql
-CREATE ROLE iwant_migrator NOLOGIN;
-CREATE ROLE iwant_app_runtime NOLOGIN;
-CREATE ROLE iwant_postgrest NOLOGIN;
-CREATE ROLE iwant_authenticator LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
-GRANT iwant_postgrest TO iwant_authenticator;
-CREATE ROLE iwant_migration_runner LOGIN NOINHERIT PASSWORD 'iwant-migration-test';
-GRANT iwant_migrator TO iwant_migration_runner;
-CREATE DATABASE iwant OWNER iwant_migrator;
-CREATE DATABASE iwant_concurrent OWNER iwant_migrator;
-```
-
-Load the real migration set:
-
-```go
 migrations, err := schemamigration.Load(repositorymigrations.Files)
 if err != nil {
     t.Fatal(err)
 }
 ```
 
-The test must contain these subtests with explicit assertions:
+- [ ] **Step 3: Preserve superuser rejection and initial-status behavior**
 
 ```go
-t.Run("rejects superuser credentials", func(t *testing.T) {
-    runner, err := schemamigration.Open(ctx, databaseURL(t, adminURL, "postgres", password, "iwant"))
-    if runner != nil {
-        _ = runner.Close(ctx)
-    }
-    if err == nil || !strings.Contains(err.Error(), "PostgreSQL superuser credentials are forbidden for schema migration") {
-        t.Fatalf("expected superuser rejection, got %v", err)
-    }
-})
+superuserURL := databaseURL(t, adminURL, "postgres", password, "iwant")
+runner, err := schemamigration.Open(ctx, superuserURL)
+if runner != nil {
+    _ = runner.Close(ctx)
+}
+if err == nil || !strings.Contains(err.Error(), "PostgreSQL superuser credentials are forbidden for schema migration") {
+    t.Fatalf("expected superuser rejection, got %v", err)
+}
+
+migrationURL := databaseURL(t, adminURL, "iwant_migration_runner", password, "iwant")
+runner, err = schemamigration.Open(ctx, migrationURL)
+if err != nil {
+    t.Fatal(err)
+}
+defer runner.Close(context.Background())
+
+status, err := runner.Inspect(ctx, migrations)
+if err != nil {
+    t.Fatal(err)
+}
+if status.Applied != 0 || len(status.Pending) != len(migrations) {
+    t.Fatalf("initial status = applied %d pending %d, want 0/%d", status.Applied, len(status.Pending), len(migrations))
+}
+
+adminTarget := connectSimple(t, ctx, superuserURL)
+var historyMissing bool
+if err := adminTarget.QueryRow(ctx, "SELECT to_regclass('iwant_migration.schema_migration') IS NULL").Scan(&historyMissing); err != nil {
+    t.Fatal(err)
+}
+if !historyMissing {
+    t.Fatal("status unexpectedly created migration history")
+}
 ```
 
-For the normal migration URL, call `Inspect` before apply and assert `Applied == 0`, all migrations are pending, and `to_regclass('iwant_migration.schema_migration') IS NULL` through a separate PostgreSQL connection.
-
-Call `Apply` twice and assert:
+- [ ] **Step 4: Preserve apply, idempotency, verify and target-schema behavior**
 
 ```go
+first, err := runner.Apply(ctx, migrations)
+if err != nil {
+    t.Fatal(err)
+}
 if got, want := len(first.Applied), len(migrations); got != want {
     t.Fatalf("first apply = %d migrations, want %d", got, want)
+}
+
+second, err := runner.Apply(ctx, migrations)
+if err != nil {
+    t.Fatal(err)
 }
 if got := len(second.Applied); got != 0 {
     t.Fatalf("second apply newly applied = %d, want 0", got)
 }
+
+status, err = runner.Inspect(ctx, migrations)
+if err != nil {
+    t.Fatal(err)
+}
+if len(status.Pending) != 0 || status.Applied != len(migrations) {
+    t.Fatalf("final status = applied %d pending %d", status.Applied, len(status.Pending))
+}
+
+targetSchema, err := os.ReadFile(repositoryFile(t, "db", "tests", "target_schema.sql"))
+if err != nil {
+    t.Fatal(err)
+}
+if _, err := adminTarget.Exec(ctx, string(targetSchema)); err != nil {
+    t.Fatalf("target schema assertion: %v", err)
+}
+
+var historyCount int
+if err := adminTarget.QueryRow(ctx, "SELECT count(*) FROM iwant_migration.schema_migration").Scan(&historyCount); err != nil {
+    t.Fatal(err)
+}
+if historyCount != len(migrations) {
+    t.Fatalf("history rows = %d, want %d", historyCount, len(migrations))
+}
 ```
 
-Run `Inspect` after apply and require zero pending migrations.
+- [ ] **Step 5: Preserve concurrent apply**
 
-Execute `db/tests/target_schema.sql` against the migrated `iwant` database using a `pgx.Conn` configured with `pgx.QueryExecModeSimpleProtocol`; this preserves the target-schema behavior without invoking `psql`.
+```go
+concurrentURL := databaseURL(t, adminURL, "iwant_migration_runner", password, "iwant_concurrent")
+runners := make([]*schemamigration.Runner, 2)
+for i := range runners {
+    runners[i], err = schemamigration.Open(ctx, concurrentURL)
+    if err != nil {
+        t.Fatal(err)
+    }
+    defer runners[i].Close(context.Background())
+}
 
-For concurrency, open two independent `Runner` sessions against `iwant_concurrent` and call `Apply` simultaneously with a `sync.WaitGroup`. Both calls must return nil; afterward query `iwant_migration.schema_migration` and require exactly `len(migrations)` rows.
+var wg sync.WaitGroup
+errs := make(chan error, len(runners))
+for _, concurrentRunner := range runners {
+    wg.Add(1)
+    go func(r *schemamigration.Runner) {
+        defer wg.Done()
+        _, applyErr := r.Apply(ctx, migrations)
+        errs <- applyErr
+    }(concurrentRunner)
+}
+wg.Wait()
+close(errs)
+for applyErr := range errs {
+    if applyErr != nil {
+        t.Fatal(applyErr)
+    }
+}
 
-For checksum drift, update version 1 to `repeat('0', 64)`, then call `Inspect` and require an error containing `applied migration 000001 checksum changed`.
+adminConcurrent := connectSimple(t, ctx, databaseURL(t, adminURL, "postgres", password, "iwant_concurrent"))
+if err := adminConcurrent.QueryRow(ctx, "SELECT count(*) FROM iwant_migration.schema_migration").Scan(&historyCount); err != nil {
+    t.Fatal(err)
+}
+if historyCount != len(migrations) {
+    t.Fatalf("concurrent history rows = %d, want %d", historyCount, len(migrations))
+}
+```
 
-- [ ] **Step 2: Run the new test while the old shell test still exists**
+- [ ] **Step 6: Preserve checksum-drift detection**
 
-Run:
+```go
+if _, err := adminTarget.Exec(ctx,
+    "UPDATE iwant_migration.schema_migration SET checksum_sha256 = repeat('0', 64) WHERE version = 1",
+); err != nil {
+    t.Fatal(err)
+}
+_, err = runner.Inspect(ctx, migrations)
+if err == nil || !strings.Contains(err.Error(), "applied migration 000001 checksum changed") {
+    t.Fatalf("expected checksum drift error, got %v", err)
+}
+```
+
+- [ ] **Step 7: Run the Go integration test before deleting shell**
 
 ```bash
 go test -count=1 -run TestRunnerAgainstPostgres ./internal/schemamigration
@@ -220,11 +333,9 @@ go test -count=1 -run TestRunnerAgainstPostgres ./internal/schemamigration
 
 Expected: PASS.
 
-If Testcontainers cannot reach Docker, classify it as runner/local environment before modifying the test behavior.
+- [ ] **Step 8: Point CI at the Go test and delete the shell**
 
-- [ ] **Step 3: Simplify the workflow to call the Go integration test directly**
-
-Change `.github/workflows/schema-migrator.yml` paths:
+In `.github/workflows/schema-migrator.yml`, use these path consumers:
 
 ```yaml
       - 'go.mod'
@@ -236,48 +347,20 @@ Change `.github/workflows/schema-migrator.yml` paths:
       - '.github/workflows/schema-migrator.yml'
 ```
 
-Remove the `scripts/run-schema-migrator-test.sh` path.
-
-Replace:
-
-```yaml
-      - name: Run schema migrator integration gate
-        run: bash scripts/run-schema-migrator-test.sh
-```
-
-with:
+and this step:
 
 ```yaml
       - name: Run schema migrator integration gate
         run: go test -count=1 -run TestRunnerAgainstPostgres ./internal/schemamigration
 ```
 
-Keep `runs-on: ci-container` and `DOCKER_HOST` unchanged because the Go test now talks to Docker through Testcontainers.
+Keep `runs-on: ci-container` and `DOCKER_HOST`. Delete `scripts/run-schema-migrator-test.sh`.
 
-- [ ] **Step 4: Delete the superseded shell script**
-
-Delete:
-
-```text
-scripts/run-schema-migrator-test.sh
-```
-
-No replacement shell wrapper is allowed.
-
-- [ ] **Step 5: Run the focused and ordinary Go suites**
-
-Run:
+- [ ] **Step 9: Verify and commit the schema-migrator tranche**
 
 ```bash
 go test -count=1 -run TestRunnerAgainstPostgres ./internal/schemamigration
 go test -count=1 ./...
-```
-
-Expected: PASS.
-
-- [ ] **Step 6: Commit the schema-migrator tranche**
-
-```bash
 git add go.mod go.sum internal/schemamigration/integration_test.go .github/workflows/schema-migrator.yml
 git rm scripts/run-schema-migrator-test.sh
 git commit -m "test: move schema migrator integration to Testcontainers"
@@ -285,19 +368,18 @@ git commit -m "test: move schema migrator integration to Testcontainers"
 
 ---
 
-### Task 3: Move controlled-runtime fixture and audit assertions out of shell heredocs
+### Task 3: Extract controlled-runtime fixture and database assertions from shell
 
 **Files:**
 - Create: `internal/webapp/testdata/controlled-runtime-fixture.sql`
 - Create: `internal/webapp/testdata/controlled-runtime-assertions.sql`
-- Modify later: `internal/webapp/runtime_test.go`
 
 **Interfaces:**
-- Produces: repository-owned SQL fixture and post-run assertion scripts consumed only by the controlled-runtime Go test.
+- Produces: SQL consumed only by the controlled-runtime Go test.
 
-- [ ] **Step 1: Extract the pre-PostgREST fixture SQL verbatim from the current shell script**
+- [ ] **Step 1: Extract the existing fixture without semantic changes**
 
-Move the SQL beginning with:
+Copy the SQL from the current shell beginning with:
 
 ```sql
 BEGIN;
@@ -305,43 +387,33 @@ SELECT set_config('iwant.actor_identifier', 'test:runtime-fixture', true);
 SELECT set_config('iwant.audit_reason', 'Create controlled runtime people', true);
 ```
 
-through its matching `COMMIT;` into `internal/webapp/testdata/controlled-runtime-fixture.sql`.
-
-Also include the existing role password operation as the last statement:
+through its `COMMIT;` into `internal/webapp/testdata/controlled-runtime-fixture.sql`, then append:
 
 ```sql
 ALTER ROLE iwant_authenticator PASSWORD 'iwant-runtime';
 ```
 
-Do not change fixture values or domain meaning in this task.
+- [ ] **Step 2: Extract the existing post-browser database assertions**
 
-- [ ] **Step 2: Extract the post-browser verification SQL verbatim**
+Copy the final `DO $$ ... $$;` assertion block from `scripts/run-piloti-runtime-test.sh` into `internal/webapp/testdata/controlled-runtime-assertions.sql` unchanged.
 
-Move the final `DO $$ ... $$;` block that checks `core.audit_event`, lifecycle preservation, financial period closure and related invariants into:
+Do not copy the `iwant.controlled-runtime.v1` JSON report generation.
 
-```text
-internal/webapp/testdata/controlled-runtime-assertions.sql
-```
-
-Do not copy the final JSON report generation; that report has no external consumer and is deleted.
-
-- [ ] **Step 3: Verify the files contain the existing invariant messages**
-
-Run:
+- [ ] **Step 3: Verify key existing invariants remain in the extracted files**
 
 ```bash
+grep -F "Create controlled runtime people" internal/webapp/testdata/controlled-runtime-fixture.sql
 grep -F "expected attributed browser person mutation audit events" internal/webapp/testdata/controlled-runtime-assertions.sql
 grep -F "expected closed Costi period to reject normal expense insert" internal/webapp/testdata/controlled-runtime-assertions.sql
-grep -F "Create controlled runtime people" internal/webapp/testdata/controlled-runtime-fixture.sql
 ```
 
-Expected: all PASS.
+Expected: PASS.
 
-Do not commit until the Go test consumes these files in Task 4.
+Do not commit until Task 4 consumes these files.
 
 ---
 
-### Task 4: Make the existing browser controlled-runtime test own PostgreSQL and PostgREST lifecycle
+### Task 4: Make the browser controlled-runtime test own PostgreSQL/PostgREST lifecycle
 
 **Files:**
 - Modify: `internal/webapp/runtime_test.go`
@@ -350,25 +422,23 @@ Do not commit until the Go test consumes these files in Task 4.
 - Consume: `internal/webapp/testdata/controlled-runtime-assertions.sql`
 
 **Interfaces:**
-- `startControlledRuntime(t *testing.T) *controlledRuntimeEnvironment`
-- `controlledRuntimeEnvironment.postgrestURL string`
-- `controlledRuntimeEnvironment.jwtSecret []byte`
-- `(*controlledRuntimeEnvironment).verify(t *testing.T)` executes the post-browser SQL assertions.
+- Produces: `startControlledRuntime(t *testing.T) *controlledRuntimeEnvironment`.
+- `controlledRuntimeEnvironment` exposes only `postgrestURL`, `jwtSecret`, and `databaseURL` to its own package test.
+- `(*controlledRuntimeEnvironment).verify(t *testing.T)` executes the extracted post-browser SQL assertions.
 
-`runtime_environment_test.go` is a package-local test helper, not a reusable framework; it exists only to keep container setup out of the already-large browser assertion file.
+- [ ] **Step 1: Create the focused package-local environment helper**
 
-- [ ] **Step 1: Create the package-local environment helper**
-
-Use these core imports:
+Use:
 
 ```go
+package webapp
+
 import (
     "context"
-    "fmt"
     "net"
-    "net/http"
     "os"
     "path/filepath"
+    "runtime"
     "testing"
     "time"
 
@@ -380,109 +450,158 @@ import (
     tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
     "github.com/testcontainers/testcontainers-go/wait"
 )
-```
 
-Define only the data required by the browser test:
-
-```go
 type controlledRuntimeEnvironment struct {
     postgrestURL string
     jwtSecret   []byte
     databaseURL string
 }
+
+func webappTestFile(t *testing.T, parts ...string) string {
+    t.Helper()
+    _, file, _, ok := runtime.Caller(0)
+    if !ok {
+        t.Fatal("resolve controlled runtime test path")
+    }
+    root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+    return filepath.Join(append([]string{root}, parts...)...)
+}
+
+func connectControlledRuntimeDB(t *testing.T, ctx context.Context, databaseURL string) *pgx.Conn {
+    t.Helper()
+    config, err := pgx.ParseConfig(databaseURL)
+    if err != nil {
+        t.Fatal(err)
+    }
+    config.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
+    conn, err := pgx.ConnectConfig(ctx, config)
+    if err != nil {
+        t.Fatal(err)
+    }
+    t.Cleanup(func() { _ = conn.Close(context.Background()) })
+    return conn
+}
 ```
 
-Create a throw-away network:
+This helper is test-only and package-local; do not move it into production packages or a shared integration framework.
+
+- [ ] **Step 2: Start a throw-away network and PostgreSQL**
 
 ```go
-nw, err := network.New(ctx)
-if err != nil {
-    t.Fatal(err)
-}
-testcontainers.CleanupNetwork(t, nw)
+func startControlledRuntime(t *testing.T) *controlledRuntimeEnvironment {
+    t.Helper()
+    ctx := context.Background()
+
+    nw, err := network.New(ctx)
+    if err != nil {
+        t.Fatal(err)
+    }
+    testcontainers.CleanupNetwork(t, nw)
+
+    postgresContainer, err := tcpostgres.Run(ctx,
+        "postgres:16",
+        tcpostgres.WithDatabase("iwant"),
+        tcpostgres.WithUsername("postgres"),
+        tcpostgres.WithPassword("iwant-runtime"),
+        tcpostgres.BasicWaitStrategies(),
+        network.WithNetwork([]string{"postgres"}, nw),
+    )
+    if err != nil {
+        t.Fatal(err)
+    }
+    testcontainers.CleanupContainer(t, postgresContainer)
+
+    databaseURL, err := postgresContainer.ConnectionString(ctx, "sslmode=disable")
+    if err != nil {
+        t.Fatal(err)
+    }
+    database := connectControlledRuntimeDB(t, ctx, databaseURL)
+
+    migrations, err := schemamigration.Load(repositorymigrations.Files)
+    if err != nil {
+        t.Fatal(err)
+    }
+    for _, migration := range migrations {
+        if _, err := database.Exec(ctx, migration.SQL); err != nil {
+            t.Fatalf("apply %s: %v", migration.Filename, err)
+        }
+    }
+
+    fixture, err := os.ReadFile(webappTestFile(t, "internal", "webapp", "testdata", "controlled-runtime-fixture.sql"))
+    if err != nil {
+        t.Fatal(err)
+    }
+    if _, err := database.Exec(ctx, string(fixture)); err != nil {
+        t.Fatalf("controlled runtime fixture: %v", err)
+    }
 ```
 
-Start PostgreSQL on that network with alias `postgres`:
+Continue the same function in Step 3.
+
+- [ ] **Step 3: Start PostgREST on the same network and return host-side connection data**
+
+Append:
 
 ```go
-postgresContainer, err := tcpostgres.Run(ctx,
-    "postgres:16",
-    tcpostgres.WithDatabase("iwant"),
-    tcpostgres.WithUsername("postgres"),
-    tcpostgres.WithPassword("iwant-runtime"),
-    tcpostgres.BasicWaitStrategies(),
-    network.WithNetwork([]string{"postgres"}, nw),
-)
-if err != nil {
-    t.Fatal(err)
+    const jwtSecret = "piloti-runtime-jwt-secret-32-bytes"
+    postgrestContainer, err := testcontainers.Run(ctx,
+        "postgrest/postgrest:v14.14",
+        network.WithNetwork([]string{"postgrest"}, nw),
+        testcontainers.WithExposedPorts("3000/tcp"),
+        testcontainers.WithEnv(map[string]string{
+            "PGRST_DB_URI":     "postgres://iwant_authenticator:iwant-runtime@postgres:5432/iwant",
+            "PGRST_DB_SCHEMAS": "api",
+            "PGRST_JWT_SECRET": jwtSecret,
+            "PGRST_JWT_AUD":    "iwant-postgrest",
+        }),
+        testcontainers.WithWaitStrategy(
+            wait.ForHTTP("/").WithPort("3000/tcp").WithStartupTimeout(60*time.Second),
+        ),
+    )
+    if err != nil {
+        t.Fatal(err)
+    }
+    testcontainers.CleanupContainer(t, postgrestContainer)
+
+    host, err := postgrestContainer.Host(ctx)
+    if err != nil {
+        t.Fatal(err)
+    }
+    port, err := postgrestContainer.MappedPort(ctx, "3000/tcp")
+    if err != nil {
+        t.Fatal(err)
+    }
+
+    return &controlledRuntimeEnvironment{
+        postgrestURL: "http://" + net.JoinHostPort(host, port.Port()),
+        jwtSecret:   []byte(jwtSecret),
+        databaseURL: databaseURL,
+    }
 }
-testcontainers.CleanupContainer(t, postgresContainer)
 ```
 
-Get the host-side connection string with:
+Do not assume `localhost` or a fixed mapped port.
+
+- [ ] **Step 4: Implement database verification from the extracted SQL**
 
 ```go
-databaseURL, err := postgresContainer.ConnectionString(ctx, "sslmode=disable")
-if err != nil {
-    t.Fatal(err)
+func (environment *controlledRuntimeEnvironment) verify(t *testing.T) {
+    t.Helper()
+    ctx := context.Background()
+    database := connectControlledRuntimeDB(t, ctx, environment.databaseURL)
+    assertions, err := os.ReadFile(webappTestFile(t, "internal", "webapp", "testdata", "controlled-runtime-assertions.sql"))
+    if err != nil {
+        t.Fatal(err)
+    }
+    if _, err := database.Exec(ctx, string(assertions)); err != nil {
+        t.Fatalf("controlled runtime database assertions: %v", err)
+    }
 }
 ```
 
-Connect with pgx simple protocol, load migrations via `schemamigration.Load(repositorymigrations.Files)` and execute each migration's SQL in order. Then read and execute `testdata/controlled-runtime-fixture.sql`.
+- [ ] **Step 5: Replace the external-env skip in `runtime_test.go`**
 
-Start PostgREST on the same network:
-
-```go
-const jwtSecret = "piloti-runtime-jwt-secret-32-bytes"
-postgrestContainer, err := testcontainers.Run(ctx,
-    "postgrest/postgrest:v14.14",
-    network.WithNetwork([]string{"postgrest"}, nw),
-    testcontainers.WithExposedPorts("3000/tcp"),
-    testcontainers.WithEnv(map[string]string{
-        "PGRST_DB_URI":     "postgres://iwant_authenticator:iwant-runtime@postgres:5432/iwant",
-        "PGRST_DB_SCHEMAS": "api",
-        "PGRST_JWT_SECRET": jwtSecret,
-        "PGRST_JWT_AUD":    "iwant-postgrest",
-    }),
-    testcontainers.WithWaitStrategy(
-        wait.ForHTTP("/").WithPort("3000/tcp").WithStartupTimeout(60*time.Second),
-    ),
-)
-if err != nil {
-    t.Fatal(err)
-}
-testcontainers.CleanupContainer(t, postgrestContainer)
-```
-
-Construct the host URL from `Host(ctx)` plus `MappedPort(ctx, "3000/tcp")`; do not assume localhost or a fixed host port:
-
-```go
-host, err := postgrestContainer.Host(ctx)
-if err != nil {
-    t.Fatal(err)
-}
-port, err := postgrestContainer.MappedPort(ctx, "3000/tcp")
-if err != nil {
-    t.Fatal(err)
-}
-postgrestURL := "http://" + net.JoinHostPort(host, port.Port())
-```
-
-Return the environment with `[]byte(jwtSecret)`.
-
-- [ ] **Step 2: Make `verify` execute the extracted audit assertions directly**
-
-`verify` opens `databaseURL` with pgx simple protocol, reads:
-
-```text
-internal/webapp/testdata/controlled-runtime-assertions.sql
-```
-
-and executes it. Any PostgreSQL exception fails the Go test directly. Do not generate `iwant.controlled-runtime.v1` JSON.
-
-- [ ] **Step 3: Remove the environment-variable skip from the browser test**
-
-At the start of `TestControlledRuntimeBrowserActorReachesPostgreSQL`, replace:
+Replace:
 
 ```go
 postgrestURL := os.Getenv("IWANT_RUNTIME_TEST_POSTGREST_URL")
@@ -500,115 +619,89 @@ postgrestURL := runtime.postgrestURL
 jwtKey := runtime.jwtSecret
 ```
 
-After all existing browser mutations/assertions complete, call:
+Remove the now-unused `os` import from `runtime_test.go` only if no other code in that file consumes it.
+
+After the existing browser behavior/mutations have completed, call:
 
 ```go
 runtime.verify(t)
 ```
 
-The existing browser assertions themselves remain unchanged.
+Do not alter the existing browser assertions themselves.
 
-- [ ] **Step 4: Run the controlled runtime test while the shell script still exists**
-
-Run:
+- [ ] **Step 6: Run the Go-controlled runtime before deleting shell**
 
 ```bash
 go test -count=1 -run TestControlledRuntimeBrowserActorReachesPostgreSQL ./internal/webapp
-```
-
-Expected: PASS with Testcontainers owning PostgreSQL/PostgREST lifecycle.
-
-- [ ] **Step 5: Verify the generated report has no remaining consumer**
-
-Run:
-
-```bash
-! grep -R "CONTROLLED_RUNTIME_REPORT_PATH\|iwant.controlled-runtime.v1\|W14 controlled runtime reconciliation report" \
-  --exclude='run-piloti-runtime-test.sh' .
 ```
 
 Expected: PASS.
 
 ---
 
-### Task 5: Delete the controlled-runtime shell lifecycle and simplify its workflow
+### Task 5: Delete controlled-runtime shell lifecycle and simplify CI
 
 **Files:**
 - Modify: `.github/workflows/piloti-runtime.yml`
 - Delete: `scripts/run-piloti-runtime-test.sh`
+- Add: `internal/webapp/runtime_environment_test.go`
+- Add: `internal/webapp/testdata/controlled-runtime-fixture.sql`
+- Add: `internal/webapp/testdata/controlled-runtime-assertions.sql`
+- Modify: `internal/webapp/runtime_test.go`
 - Modify: `go.mod`
 - Modify: `go.sum`
-- Add from previous tasks: `internal/webapp/runtime_environment_test.go`
-- Add from previous tasks: `internal/webapp/testdata/controlled-runtime-fixture.sql`
-- Add from previous tasks: `internal/webapp/testdata/controlled-runtime-assertions.sql`
 
 **Interfaces:**
-- Consumes: the self-contained Go controlled-runtime test from Task 4.
-- Produces: one workflow step that runs that test directly.
+- Consumes: self-contained Go test from Task 4.
+- Produces: direct CI invocation with no shell-owned lifecycle/report.
 
-- [ ] **Step 1: Update path filters for actual consumers**
+- [ ] **Step 1: Update path filters**
 
-In `.github/workflows/piloti-runtime.yml`, remove:
-
-```yaml
-      - 'scripts/run-piloti-runtime-test.sh'
-```
-
-and add:
+Keep existing product paths and ensure these are present once:
 
 ```yaml
       - 'go.mod'
       - 'go.sum'
       - 'internal/webapp/**'
+      - '.github/workflows/piloti-runtime.yml'
 ```
 
-`internal/webapp/**` already exists in `main`; keep only one copy.
+Remove `scripts/run-piloti-runtime-test.sh` from both push and pull-request filters.
 
-- [ ] **Step 2: Replace the shell invocation**
+- [ ] **Step 2: Replace the shell step**
 
-Replace:
-
-```yaml
-      - name: Run browser-to-PostgreSQL controlled runtime test
-        env:
-          RUNTIME_DEBUG: '1'
-        run: scripts/run-piloti-runtime-test.sh
-```
-
-with:
+Use:
 
 ```yaml
       - name: Run browser-to-PostgreSQL controlled runtime test
         run: go test -count=1 -run TestControlledRuntimeBrowserActorReachesPostgreSQL ./internal/webapp
 ```
 
-Keep `runs-on: ci-container` and `DOCKER_HOST` because Testcontainers consumes Docker.
+Remove `RUNTIME_DEBUG`; keep `ci-container` and `DOCKER_HOST`.
 
-- [ ] **Step 3: Delete the shell script**
-
-Delete:
-
-```text
-scripts/run-piloti-runtime-test.sh
-```
-
-- [ ] **Step 4: Run focused and full tests**
-
-Run:
+- [ ] **Step 3: Delete the superseded shell and report generation**
 
 ```bash
+git rm scripts/run-piloti-runtime-test.sh
+```
+
+No `CONTROLLED_RUNTIME_REPORT_PATH` or `iwant.controlled-runtime.v1` replacement is created.
+
+- [ ] **Step 4: Verify both integration tests and the ordinary suite**
+
+```bash
+go test -count=1 -run TestRunnerAgainstPostgres ./internal/schemamigration
 go test -count=1 -run TestControlledRuntimeBrowserActorReachesPostgreSQL ./internal/webapp
 go test -count=1 ./...
 ```
 
 Expected: PASS.
 
-- [ ] **Step 5: Confirm no active CI path references either retired shell script**
-
-Run:
+- [ ] **Step 5: Confirm active CI has no retired shell references**
 
 ```bash
-! grep -R "run-schema-migrator-test.sh\|run-piloti-runtime-test.sh" .github internal scripts --exclude-dir=.git
+! grep -R "run-schema-migrator-test.sh\|run-piloti-runtime-test.sh\|CONTROLLED_RUNTIME_REPORT_PATH\|iwant.controlled-runtime.v1" \
+  .github internal scripts --exclude-dir=.git
 ```
 
 Expected: PASS.
@@ -620,7 +713,6 @@ git add go.mod go.sum .github/workflows/piloti-runtime.yml \
   internal/webapp/runtime_test.go internal/webapp/runtime_environment_test.go \
   internal/webapp/testdata/controlled-runtime-fixture.sql \
   internal/webapp/testdata/controlled-runtime-assertions.sql
-git rm scripts/run-piloti-runtime-test.sh
 git commit -m "test: move controlled runtime lifecycle to Testcontainers"
 ```
 
@@ -632,105 +724,86 @@ git commit -m "test: move controlled runtime lifecycle to Testcontainers"
 - No new files.
 
 **Interfaces:**
-- Consumes: exact Task 9 iWant PR head.
+- Consumes: exact iWant Task 9 PR head.
 - Produces: natural-run evidence for both integration workflows.
 
-- [ ] **Step 1: Push the branch once the local focused/full suites are green**
+- [ ] **Step 1: Push only after focused and full local suites are green**
 
-Do not invoke workflow dispatch to compensate for a missing natural run if the path filters already match the changed files.
+Do not invoke `workflow_dispatch` to compensate for a normal path-filtered PR run.
 
 - [ ] **Step 2: Inspect natural `Schema Migrator` and `Controlled Runtime` runs**
 
 Acceptance for each:
 
-- job starts on `ci-container`;
-- checkout and Go setup run normally;
-- focused Go integration test PASS;
-- no shell orchestration step exists;
-- no manual rerun is performed.
+```text
+ci-container assigned;
+checkout started;
+Go setup completed;
+focused integration test PASS;
+no shell orchestration step;
+no manual rerun.
+```
 
-If a job has no steps/runner assignment, stop as infrastructure according to RFC §8.
+If a job has zero steps or no runner assignment, stop as infrastructure according to RFC §8.
 
-- [ ] **Step 3: Treat Testcontainers lifecycle failure separately from domain failure**
+- [ ] **Step 3: Diagnose by ownership before editing**
 
-Lifecycle class:
-
-- Docker/provider unavailable;
-- image pull unavailable;
-- network/container readiness failure.
-
-Domain class:
-
-- migration privilege/history/checksum failure;
-- PostgREST connection/auth failure;
-- browser behavior failure;
-- audit/domain SQL assertion failure.
-
-Do not add retries or sleeps until the failure class is known.
+Lifecycle failures are Docker/provider/image/network/readiness failures. Domain failures are migration privilege/history/checksum, PostgREST/auth, browser behavior, or audit SQL failures. Do not add sleeps/retries before classification.
 
 ---
 
-### Task 7: Reconcile active documentation after code is integrated with current main
+### Task 7: Reconcile active docs against then-current main
 
 **Files:**
-- Re-evaluate: `README.md`
-- Re-evaluate: `docs/project/current-state.md`
+- Re-fetch before editing: `README.md`
+- Re-fetch before editing: `docs/project/current-state.md`
 - Update: Task 9 PR body
 
 **Interfaces:**
-- Consumes: verified integration implementation and then-current `main`/open-PR state.
-- Produces: no active source claiming shell-owned lifecycle.
+- Consumes: verified code plus then-current state of PR #387/main.
+- Produces: no active source claiming shell-owned integration lifecycle.
 
-- [ ] **Step 1: Re-fetch current `main` before editing docs**
+- [ ] **Step 1: Re-fetch current `main` because PR #387 currently modifies both active docs**
 
-PR #387 currently modifies both `README.md` and `docs/project/current-state.md`; do not base documentation edits on stale pre-#387 text.
+Do not copy pre-#387 documentation text into a new branch.
 
-- [ ] **Step 2: Update only active integration-runtime statements**
+- [ ] **Step 2: Change only integration-runtime statements to the verified result**
 
-The resulting current-state statement must say, in substance:
+Use this exact operational meaning:
 
 ```text
 Schema Migrator and Controlled Runtime remain separate behavioral gates on ci-container.
 Their PostgreSQL/PostgREST lifecycle is test-owned through Testcontainers for Go.
-Schema migration assertions cover privilege rejection, idempotency, concurrency,
+Schema migration assertions cover superuser rejection, idempotency, concurrency,
 target schema and checksum drift. Controlled Runtime covers the browser/API/PostgREST/
 PostgreSQL path and database audit invariants. No shell Docker orchestration or
 reconciliation-report artifact is part of steady state.
 ```
 
-Do not alter unrelated UI-wave history.
+Do not modify unrelated UI-wave history.
 
-- [ ] **Step 3: Verify active references**
-
-Run:
+- [ ] **Step 3: Verify active references and commit**
 
 ```bash
 ! grep -R "run-schema-migrator-test.sh\|run-piloti-runtime-test.sh\|iwant.controlled-runtime.v1" \
   README.md docs/project/current-state.md .github internal scripts --exclude-dir=.git
-```
-
-Expected: PASS, except explicitly archived historical evidence if present and clearly marked Archived.
-
-- [ ] **Step 4: Commit documentation reconciliation separately**
-
-```bash
 git add README.md docs/project/current-state.md
 git commit -m "docs: align iWant integration runtime ownership"
 ```
+
+Archived historical evidence may retain old names only when clearly marked Archived.
 
 ---
 
 ## Completion Gate
 
-iWant Task 9 tranche is ready when all are true:
-
 - both real integration behaviors remain covered;
-- `run-schema-migrator-test.sh` and `run-piloti-runtime-test.sh` are gone from active CI;
-- no manual Docker network/run/readiness/port/cleanup shell remains for the in-scope gates;
-- Testcontainers is used directly from Go tests without an internal wrapper framework;
-- `scripts/run-migration-rehearsal.sh` remains untouched;
+- both in-scope lifecycle shell scripts are gone from active CI;
+- no manual Docker network/run/readiness/port/cleanup shell remains for these gates;
+- Testcontainers is called directly from Go tests without a shared framework;
+- `scripts/run-migration-rehearsal.sh` is untouched;
 - unused reconciliation-report JSON is gone;
-- focused tests and `go test -count=1 ./...` pass locally where Docker is available;
+- focused tests and `go test -count=1 ./...` pass where Docker is available;
 - natural current-head CI is inspected without rerun;
 - active docs match the final state after reconciling with then-current main;
 - PR remains unmerged unless separately authorized.
