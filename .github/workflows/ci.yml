@@ -80,7 +80,7 @@ jobs:
           ignore-unfixed: true
           vuln-type: os,library
           scanners: vuln
-          version: v0.73.0
+          version: v0.74.0
           trivyignores: .trivyignore.yaml
           exit-code: '1'
 
