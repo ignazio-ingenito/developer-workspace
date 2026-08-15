@@ -1,11 +1,12 @@
 # syntax=docker/dockerfile:1.7
 ARG DEBIAN_VERSION=13
-ARG CODE_SERVER_VERSION=4.132.0
+ARG CODE_SERVER_VERSION=v4.132.0
+ARG CODE_SERVER_DEB_SHA256=18e0e69920ab23b725cb219fb42bc045a908421448cf496a3124314e1a02bcf1
 
 FROM debian:${DEBIAN_VERSION}-slim
 
 ARG CODE_SERVER_VERSION
-ARG CODE_SERVER_DEB_SHA256=18e0e69920ab23b725cb219fb42bc045a908421448cf496a3124314e1a02bcf1
+ARG CODE_SERVER_DEB_SHA256
 ARG MISE_VERSION=2026.7.3
 ARG MISE_SHA256=06088e84e4514b59fd2b6b17927bcc37aa0ab10020a270868871fb010b92069b
 ARG OH_MY_BASH_REF=627913b75855036cb5af2f3ad130c66a335e7382
@@ -31,8 +32,9 @@ RUN apt-get update \
     libcairo2 libcups2t64 libdbus-1-3 libdrm2 libgbm1 libglib2.0-0t64 \
     libnspr4 libnss3 libpango-1.0-0 libx11-6 libxcb1 libxcomposite1 \
     libxdamage1 libxext6 libxfixes3 libxkbcommon0 libxrandr2 \
+ && code_server_asset_version="${CODE_SERVER_VERSION#v}" \
  && curl -fsSL \
-      "https://github.com/coder/code-server/releases/download/v${CODE_SERVER_VERSION}/code-server_${CODE_SERVER_VERSION}_amd64.deb" \
+      "https://github.com/coder/code-server/releases/download/${CODE_SERVER_VERSION}/code-server_${code_server_asset_version}_amd64.deb" \
       -o /tmp/code-server.deb \
  && echo "${CODE_SERVER_DEB_SHA256}  /tmp/code-server.deb" | sha256sum -c - \
  && apt-get install -y --no-install-recommends /tmp/code-server.deb \

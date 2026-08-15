@@ -11,7 +11,22 @@
     }
   ],
   "customManagers": [
-    {"customType":"regex","managerFilePatterns":["/^Dockerfile$/"],"matchStrings":["ARG CODE_SERVER_VERSION=(?<currentValue>[^\\s]+)"],"datasourceTemplate":"docker","depNameTemplate":"codercom/code-server"},
-    {"customType":"regex","managerFilePatterns":["/^Dockerfile$/"],"matchStrings":["ARG MISE_VERSION=(?<currentValue>[^\\s]+)"],"datasourceTemplate":"github-releases","depNameTemplate":"jdx/mise"}
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^Dockerfile$/"],
+      "matchStrings": [
+        "ARG CODE_SERVER_VERSION=(?<currentValue>v[^\\s]+)\\nARG CODE_SERVER_DEB_SHA256=(?<currentDigest>[a-f0-9]{64})"
+      ],
+      "datasourceTemplate": "github-release-attachments",
+      "depNameTemplate": "coder/code-server",
+      "versioningTemplate": "semver-coerced"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^Dockerfile$/"],
+      "matchStrings": ["ARG MISE_VERSION=(?<currentValue>[^\\s]+)"],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "jdx/mise"
+    }
   ]
 }
