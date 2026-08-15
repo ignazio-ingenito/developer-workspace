@@ -106,20 +106,23 @@ Do not enable auto-merge.
 
 ## 4. Codex CLI
 
-Codex is installed as a standalone tool in the persistent home and is checked
-for updates automatically before a new Codex process starts. Inspect the full
-workspace tool inventory and force an update with:
+Codex is installed as a standalone tool in the persistent home. mise owns the
+rest of the home tool baseline directly.
 
 ```bash
-workspace-tools
-workspace-tools update
+mise ls
+mise doctor
+mise install
+mise upgrade
+codex update
 hash -r
 command -v codex
 codex --version
 ```
 
-`command -v codex` must return `/usr/local/bin/codex`. The update command
-also retires the older npm-managed command from `~/.local/bin` when present.
+`command -v codex` must return `/usr/local/bin/codex`. The Codex launcher
+keeps the last usable binary when an update fails and archives a historical
+npm-managed shim only after the standalone installation succeeds.
 
 Authenticate interactively from a tmux session:
 
@@ -129,11 +132,9 @@ codex login
 codex
 ```
 
-The home directory is persistent, so the standalone installation and Codex
-state survive Pod recreation. Automatic updates never restart an active Codex
-process; the next process uses the new version. Never copy Codex state into the
-image or dotfiles. See `docs/TOOL-LIFECYCLE.md` for ownership and update
-rules.
+The home directory is persistent, so the installation and Codex state survive
+Pod recreation. Never copy Codex state into the image or dotfiles. See
+`docs/TOOL-LIFECYCLE.md` for ownership and update rules.
 
 ## 5. Vaultwarden CLI
 

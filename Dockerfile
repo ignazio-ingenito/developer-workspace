@@ -7,6 +7,7 @@ FROM debian:${DEBIAN_VERSION}-slim
 ARG CODE_SERVER_VERSION
 ARG CODE_SERVER_DEB_SHA256=18e0e69920ab23b725cb219fb42bc045a908421448cf496a3124314e1a02bcf1
 ARG MISE_VERSION=2026.7.3
+ARG MISE_SHA256=06088e84e4514b59fd2b6b17927bcc37aa0ab10020a270868871fb010b92069b
 ARG OH_MY_BASH_REF=627913b75855036cb5af2f3ad130c66a335e7382
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -43,16 +44,12 @@ RUN apt-get update \
  && chown coder:coder /workspaces \
  && rm -rf /var/lib/apt/lists/*
 
-COPY scripts/download-verified.sh /usr/local/bin/download-verified
-RUN chmod 0755 /usr/local/bin/download-verified
-
 # This is a recovery seed, not the active mise installation. The launcher
 # copies it into ~/.local/bin on first use, where mise can update itself.
-RUN download-verified \
+RUN curl -fsSL \
       "https://github.com/jdx/mise/releases/download/v${MISE_VERSION}/mise-v${MISE_VERSION}-linux-x64" \
-      "https://github.com/jdx/mise/releases/download/v${MISE_VERSION}/SHASUMS256.txt" \
-      "mise-v${MISE_VERSION}-linux-x64" \
-      /tmp/mise \
+      -o /tmp/mise \
+ && echo "${MISE_SHA256}  /tmp/mise" | sha256sum -c - \
  && install -m 0755 /tmp/mise /opt/mise-bootstrap \
  && rm /tmp/mise
 
@@ -73,7 +70,6 @@ RUN CODE_SERVER_EXTENSIONS_DIR=/opt/developer-workspace/code-server-extensions \
  && chmod 0755 /usr/local/lib/developer-workspace/*.sh \
  && ln -s /usr/local/lib/developer-workspace/workspace-doctor.sh /usr/local/bin/workspace-doctor \
  && ln -s /usr/local/lib/developer-workspace/workspace-tmux.sh /usr/local/bin/workspace-tmux \
- && ln -s /usr/local/lib/developer-workspace/workspace-tools.sh /usr/local/bin/workspace-tools \
  && ln -s /usr/local/lib/developer-workspace/mise-launcher.sh /usr/local/bin/mise \
  && ln -s /usr/local/lib/developer-workspace/codex-launcher.sh /usr/local/bin/codex
 

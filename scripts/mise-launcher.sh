@@ -14,4 +14,6 @@ if [[ ! -x $user_mise ]]; then
   install -m 0755 "$seed" "$user_mise"
 fi
 
+user_mise_dir=$(dirname -- "$user_mise")
+export PATH="$user_mise_dir:$PATH"
 exec "$user_mise" "$@"

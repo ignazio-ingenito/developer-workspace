@@ -24,9 +24,10 @@ The operator bootstrap, credential boundaries, tmux recovery flow, and live
 acceptance checks are documented in `docs/OPERATOR-BOOTSTRAP.md`.
 
 Most command-line tools are installed in the persistent, writable home through
-`mise`. Run `workspace-tools` to see all versions and `workspace-tools update`
-to update `mise`, its managed tools, and Codex with one command. The practical
-guide is in `docs/TOOL-LIFECYCLE.md`.
+`mise`. Use `mise ls` for inventory, `mise doctor` for diagnostics,
+`mise install` for the declared baseline and `mise upgrade` for updates.
+Codex keeps its small availability-first launcher and updates with
+`codex update`. The practical guide is in `docs/TOOL-LIFECYCLE.md`.
 
 Personal SSH agent sharing is managed by chezmoi, not by project repositories
 or this image repository. The expected layout, Bash snippet, checks, and manual
