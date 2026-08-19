@@ -40,14 +40,17 @@ version and cache while the image provides root-owned runtime libraries.
 The entrypoint runs this idempotent native sequence in the persistent home:
 
 ```bash
+mise install python@3.12.14
 mise install node python uv
 mise install
 codex --version
 ```
 
-Languages required by npm/pipx backends are installed first. A registry outage
-does not block code-server: installed tools remain usable. Retry with
-`mise install` and `codex update`.
+Languages required by npm/pipx backends are installed first. The exact Python
+3.12 runtime is installed alongside the floating workspace Python and is used
+only by the Proxmox MCP pipx environment. A registry outage does not block
+code-server: installed tools remain usable. Retry with `mise install` and
+`codex update`.
 
 `proxmox-mcp-server` is an exception to the usual floating interactive-tool
 policy because it can receive a cluster-wide administrative token. Its package
@@ -59,6 +62,17 @@ Changing the pin requires source and release review, a successful image smoke
 test, and a new immutable producer image. Credentials, Proxmox endpoints and
 Codex approval policy remain consumer/operator configuration and never belong
 in this repository or image.
+
+The Proxmox MCP pipx environment also pins Python 3.12.14. Python 3.13 and newer
+enable strict X.509 verification by default, which rejects legacy CA
+certificates without a Key Usage extension. The dedicated interpreter keeps
+TLS verification enabled for those Proxmox deployments without downgrading the
+workspace-wide Python. Because mise installs are additive, startup detects an
+existing Proxmox MCP venv built with another interpreter and force-rebuilds
+only that tool. The pipx backend receives the interpreter through its
+documented `uvx_args` pass-through because this image uses uv for Python tool
+installation. Reissuing a standards-complete Proxmox CA is the long-term
+infrastructure alternative; disabling certificate verification is not.
 
 `workspace-doctor` keeps workspace-specific checks and delegates generic
 tool-manager diagnostics to `mise doctor`.
@@ -93,3 +107,5 @@ unless a measured technical constraint requires otherwise.
 - [mise upgrade](https://mise.jdx.dev/cli/upgrade.html)
 - [mise self-update](https://mise.jdx.dev/cli/self-update.html)
 - [mise getting started and doctor](https://mise.jdx.dev/getting-started)
+- [mise pipx backend](https://mise.jdx.dev/dev-tools/backends/pipx.html)
+- [Python TLS/SSL wrapper](https://docs.python.org/3/library/ssl.html)

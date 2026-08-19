@@ -3,6 +3,7 @@ set -euo pipefail
 
 WORKSPACE_BOOTSTRAP=false /usr/local/lib/developer-workspace/entrypoint.sh true
 cd "$HOME"
+mise install python@3.12.14
 mise install node python uv
 mise install
 eval "$(mise activate bash)"
@@ -31,6 +32,7 @@ for library in "${browser_runtime_libs[@]}"; do
 done
 
 grep -Fxq 'python = "3"' /opt/developer-workspace/mise-workspace-tools.toml
+grep -Fxq '"pipx:proxmox-mcp-server" = { version = "1.4.1", extras = ["router"], uvx_args = "--python /home/coder/.local/share/mise/installs/python/3.12.14/bin/python" }' /opt/developer-workspace/mise-workspace-tools.toml
 test "$(id -u)" != "0"
 test "${BW_SERVER:-}" = "https://vault.skunklabs.uk"
 test -d /opt/oh-my-bash
@@ -67,15 +69,30 @@ workspace-doctor
 
 proxmox_mcp_python="$(mise where pipx:proxmox-mcp-server@1.4.1)/proxmox-mcp-server/bin/python"
 test -x "$proxmox_mcp_python"
+
+# Simulate the pre-migration PVC state, where the existing pipx venv used the
+# floating general Python. Startup must rebuild only the Proxmox MCP venv.
+general_python=$(command -v python3)
+"$general_python" -c \
+  'import sys; raise SystemExit(sys.version_info[:3] == (3, 12, 14))'
+ln -sfn "$general_python" "$proxmox_mcp_python"
+"$proxmox_mcp_python" -c \
+  'import sys; raise SystemExit(sys.version_info[:3] == (3, 12, 14))'
+/usr/local/lib/developer-workspace/entrypoint.sh true
+
+proxmox_mcp_python="$(mise where pipx:proxmox-mcp-server@1.4.1)/proxmox-mcp-server/bin/python"
+test -x "$proxmox_mcp_python"
 TOOL_ROUTING=true \
 PROXMOX_DISABLE_RAW_API=true \
   "$proxmox_mcp_python" -c '
+import sys
 from importlib.metadata import version
 
 from proxmox_mcp.mcp_compat import get_registered_tool_map
 from proxmox_mcp.server import mcp, proxmox_api_raw, route_tools
 from proxmox_mcp.tool_manifest import load_manifest
 
+assert sys.version_info[:3] == (3, 12, 14)
 assert version("proxmox-mcp-server") == "1.4.1"
 assert len(load_manifest().tools) == 285
 assert set(get_registered_tool_map(mcp)) == {
