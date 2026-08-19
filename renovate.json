@@ -23,9 +23,12 @@
     {
       "customType": "regex",
       "managerFilePatterns": ["/^Dockerfile$/"],
-      "matchStrings": ["ARG MISE_VERSION=(?<currentValue>[^\\s]+)"],
-      "datasourceTemplate": "github-releases",
-      "depNameTemplate": "jdx/mise"
+      "matchStrings": [
+        "ARG MISE_VERSION=(?<currentValue>v[^\\s]+)\\nARG MISE_SHA256=(?<currentDigest>[a-f0-9]{64})"
+      ],
+      "datasourceTemplate": "github-release-attachments",
+      "depNameTemplate": "jdx/mise",
+      "versioningTemplate": "semver-coerced"
     }
   ]
 }

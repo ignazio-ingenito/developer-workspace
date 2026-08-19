@@ -7,7 +7,7 @@ FROM debian:${DEBIAN_VERSION}-slim
 
 ARG CODE_SERVER_VERSION
 ARG CODE_SERVER_DEB_SHA256
-ARG MISE_VERSION=2026.8.2
+ARG MISE_VERSION=v2026.8.2
 ARG MISE_SHA256=9a6c2a8b6fe77c98f1d210b4b3cbd2a0cf31886ad1baf10698757a3234c678c1
 ARG OH_MY_BASH_REF=627913b75855036cb5af2f3ad130c66a335e7382
 
@@ -49,7 +49,7 @@ RUN apt-get update \
 # This is a recovery seed, not the active mise installation. The launcher
 # copies it into ~/.local/bin on first use, where mise can update itself.
 RUN curl -fsSL \
-      "https://github.com/jdx/mise/releases/download/v${MISE_VERSION}/mise-v${MISE_VERSION}-linux-x64" \
+      "https://github.com/jdx/mise/releases/download/${MISE_VERSION}/mise-${MISE_VERSION}-linux-x64" \
       -o /tmp/mise \
  && echo "${MISE_SHA256}  /tmp/mise" | sha256sum -c - \
  && install -m 0755 /tmp/mise /opt/mise-bootstrap \
