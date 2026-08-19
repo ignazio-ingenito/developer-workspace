@@ -25,6 +25,7 @@ mise from `.bashrc`.
 | Owner | Tools | Location | Update |
 | --- | --- | --- | --- |
 | Persistent home via mise | Node, Python, uv, GitHub CLI, chezmoi, Bitwarden CLI, SOPS, age, kubectl, Helm, kustomize, Argo CD, OpenTofu, Ansible, jq, yq, actionlint, Trivy, ripgrep, fd, ShellCheck | `~/.local/share/mise` | `mise install`, `mise upgrade` |
+| Persistent home via mise, exact pin | Proxmox MCP server with semantic router | `~/.local/share/mise` | reviewed pin change followed by image build and smoke test |
 | Persistent home | Codex | `~/.local/libexec/codex` | automatic before a new session, or `codex update` |
 | Image bootstrap | code-server, Bash, Git, SSH, tmux, curl, GnuPG, browser runtime libraries, recovery copy of mise | `/usr`, `/usr/local`, `/opt` | image rebuild and rollout |
 | Project | Repository-specific versions | repository `mise.toml` | reviewed repository change |
@@ -47,6 +48,17 @@ codex --version
 Languages required by npm/pipx backends are installed first. A registry outage
 does not block code-server: installed tools remain usable. Retry with
 `mise install` and `codex update`.
+
+`proxmox-mcp-server` is an exception to the usual floating interactive-tool
+policy because it can receive a cluster-wide administrative token. Its package
+version is pinned exactly in `config/mise/workspace-tools.toml`; the `router`
+extra keeps the MCP surface to three facade tools instead of publishing the
+full domain catalog to Codex. The first routed invocation downloads the
+upstream `BAAI/bge-small-en-v1.5` model into the persistent mise/user cache.
+Changing the pin requires source and release review, a successful image smoke
+test, and a new immutable producer image. Credentials, Proxmox endpoints and
+Codex approval policy remain consumer/operator configuration and never belong
+in this repository or image.
 
 `workspace-doctor` keeps workspace-specific checks and delegates generic
 tool-manager diagnostics to `mise doctor`.
