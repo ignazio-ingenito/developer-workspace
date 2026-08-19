@@ -8,6 +8,7 @@ baseline_tmux=${DEVELOPER_WORKSPACE_TMUX_CONF:-/opt/developer-workspace/tmux.con
 baseline_extensions=${DEVELOPER_WORKSPACE_BASELINE_EXTENSIONS:-/opt/developer-workspace/code-server-extensions}
 mise_command=${MISE_COMMAND:-/usr/local/bin/mise}
 bootstrap_timeout=${WORKSPACE_BOOTSTRAP_TIMEOUT:-300}
+proxmox_mcp_python_version=3.12.14
 extensions_dir="$workspace_home/.local/share/code-server/extensions"
 
 mkdir -p \
@@ -58,8 +59,31 @@ case ${WORKSPACE_BOOTSTRAP:-true} in
     bootstrap_status=0
     (
       cd "$workspace_home"
+      run_with_timeout "$mise_command" install "python@$proxmox_mcp_python_version"
       run_with_timeout "$mise_command" install node python uv
       run_with_timeout "$mise_command" install
+
+      # mise installs are additive, so a tool already present on the persistent
+      # home can retain the interpreter selected before its backend options
+      # changed. Rebuild only that venv when its runtime is stale.
+      proxmox_mcp_root=$("$mise_command" where pipx:proxmox-mcp-server 2>/dev/null || true)
+      proxmox_mcp_python=
+      if [[ -n $proxmox_mcp_root ]]; then
+        proxmox_mcp_python="$proxmox_mcp_root/proxmox-mcp-server/bin/python"
+      fi
+
+      if [[ -z $proxmox_mcp_python || ! -x $proxmox_mcp_python ]] ||
+        ! "$proxmox_mcp_python" -c \
+          "import sys; raise SystemExit(sys.version.split()[0] != '$proxmox_mcp_python_version')"; then
+        printf 'rebuilding Proxmox MCP runtime with Python %s\n' \
+          "$proxmox_mcp_python_version"
+        run_with_timeout "$mise_command" install --force pipx:proxmox-mcp-server
+        proxmox_mcp_root=$("$mise_command" where pipx:proxmox-mcp-server)
+        proxmox_mcp_python="$proxmox_mcp_root/proxmox-mcp-server/bin/python"
+        "$proxmox_mcp_python" -c \
+          "import sys; raise SystemExit(sys.version.split()[0] != '$proxmox_mcp_python_version')"
+      fi
+
       run_with_timeout /usr/local/bin/codex --version >/dev/null
     ) || bootstrap_status=$?
 
