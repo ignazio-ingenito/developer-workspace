@@ -13,6 +13,7 @@ uv = "latest"
 "aqua:argoproj/argo-cd" = "latest"
 "aqua:opentofu/opentofu" = "latest"
 "pipx:ansible-core" = "latest"
+"pipx:proxmox-mcp-server" = { version = "1.4.1", extras = ["router"] }
 "aqua:jqlang/jq" = "latest"
 "aqua:mikefarah/yq" = "latest"
 "aqua:rhysd/actionlint" = "latest"

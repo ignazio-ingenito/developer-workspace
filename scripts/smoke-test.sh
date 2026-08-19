@@ -7,7 +7,7 @@ mise install node python uv
 mise install
 eval "$(mise activate bash)"
 
-required=(code-server bash git gh tmux mise chezmoi sops age kubectl helm kustomize tofu ansible jq yq rg fd ssh dig codex bw node npm python3 uv shellcheck workspace-doctor workspace-tmux argocd actionlint trivy)
+required=(code-server bash git gh tmux mise chezmoi sops age kubectl helm kustomize tofu ansible proxmox-mcp-server jq yq rg fd ssh dig codex bw node npm python3 uv shellcheck workspace-doctor workspace-tmux argocd actionlint trivy)
 for binary in "${required[@]}"; do
   command -v "$binary" >/dev/null || { echo "missing: $binary" >&2; exit 1; }
 done
@@ -64,6 +64,28 @@ trivy --version
 actionlint --version
 chezmoi --version
 workspace-doctor
+
+proxmox_mcp_python="$(mise where pipx:proxmox-mcp-server@1.4.1)/proxmox-mcp-server/bin/python"
+test -x "$proxmox_mcp_python"
+TOOL_ROUTING=true \
+PROXMOX_DISABLE_RAW_API=true \
+  "$proxmox_mcp_python" -c '
+from importlib.metadata import version
+
+from proxmox_mcp.mcp_compat import get_registered_tool_map
+from proxmox_mcp.server import mcp, proxmox_api_raw, route_tools
+from proxmox_mcp.tool_manifest import load_manifest
+
+assert version("proxmox-mcp-server") == "1.4.1"
+assert len(load_manifest().tools) == 285
+assert set(get_registered_tool_map(mcp)) == {
+    "route_tools",
+    "call_routed_tool",
+    "proxmox_api_raw",
+}
+assert "disabled" in proxmox_api_raw("get", "/nodes").lower()
+assert "create_pool" in route_tools("create a disposable resource pool")
+'
 
 code-server --extensions-dir /opt/developer-workspace/code-server-extensions --list-extensions \
   | grep -Fx redhat.vscode-yaml
