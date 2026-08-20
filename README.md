@@ -114,7 +114,7 @@ time.
 
 1. GitHub Actions builds, tests and scans one immutable image artifact.
 2. The same verified artifact is published to GHCR with immutable CalVer/SHA tags.
-3. Homelab references the accepted immutable tag through the authenticated Harbor Proxy Cache path `private-ghcr/ignazio-ingenito/developer-workspace`.
+3. Homelab references the accepted immutable tag through the authenticated Harbor Proxy Cache path `private-ghcr/skunklabs-uk/developer-workspace`.
 4. Harbor fetches the artifact from GHCR on cache miss and performs registry scanning/rescanning; no manual GHCR-to-Harbor promotion or replication step is required.
 
 No credentials belong in this repository or image.
