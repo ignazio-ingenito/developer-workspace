@@ -8,10 +8,10 @@ This repository owns the versioned container image, shared CLI baseline,
 code-server defaults, smoke tests, and dependency automation. Personal
 configuration is applied explicitly from a private chezmoi repository and
 persists in the mounted home. Kubernetes, Cloudflare, storage, RBAC, backup,
-and observability live in `ignazio-ingenito/homelab`.
+and observability live in `skunklabs-uk/homelab`.
 
-Source issues: `ignazio-ingenito/homelab#297` and
-`ignazio-ingenito/homelab#300`.
+Source issues: `skunklabs-uk/homelab#297` and
+`skunklabs-uk/homelab#300`.
 
 ## Build
 

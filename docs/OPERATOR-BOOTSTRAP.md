@@ -1,7 +1,7 @@
 # Operator bootstrap and recovery
 
 This runbook supports the acceptance workflow for
-`ignazio-ingenito/homelab#300`. Run the commands inside the Developer
+`skunklabs-uk/homelab#300`. Run the commands inside the Developer
 Workspace. Interactive credentials and private keys stay in the persistent
 home; none belongs in the image or Git.
 
@@ -98,7 +98,7 @@ Add only the public key to GitHub, then verify:
 ssh -T git@github.com
 gh auth login --hostname github.com --git-protocol ssh --web
 gh auth status
-gh issue view 300 --repo ignazio-ingenito/homelab
+gh issue view 300 --repo skunklabs-uk/homelab
 ```
 
 Create pull requests with an explicit branch and Conventional Commit messages.
