@@ -5,7 +5,7 @@ The release workflow publishes immutable tags to GHCR. Homelab consumes the acce
 Canonical runtime path:
 
 ```text
-harbor.lab.skunklabs.uk/private-ghcr/ignazio-ingenito/developer-workspace:<immutable-calver>
+harbor.lab.skunklabs.uk/private-ghcr/skunklabs-uk/developer-workspace:<immutable-calver>
 ```
 
 There is no steady-state manual `skopeo copy`, hosted-project promotion, or preventive GHCR → Harbor replication step. On cache miss, Harbor resolves the immutable upstream artifact from GHCR and then owns registry scanning/rescanning.
